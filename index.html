@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KOWOO Thai 설비 가동 감시</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23D2201A'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div id="setupMsg" class="setup" hidden></div>
+
+<section id="login" class="login" hidden>
+  <form class="login-box">
+    <div class="brand-row"><span class="brand-mark alert"></span><strong data-i18n="appTitle"></strong></div>
+    <label><span data-i18n="email"></span><input name="email" type="email" autocomplete="username" required></label>
+    <label><span data-i18n="password"></span><input name="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit" class="btn primary" data-i18n="login"></button>
+    <p class="login-msg" role="alert"></p>
+    <select class="lang-select" aria-label="Language">
+      <option value="ko">한국어</option><option value="en">English</option><option value="th">ไทย</option>
+    </select>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" id="brandMark"></span><span data-i18n="appTitle"></span></div>
+    <div class="clock"><span data-i18n="siteTime"></span><b id="clkSite">--:--</b></div>
+    <div class="clock"><span data-i18n="krTime"></span><b id="clkHome">--:--</b></div>
+    <button id="soundBtn" type="button" aria-pressed="false" data-i18n="sound"></button>
+    <select class="lang-select" aria-label="Language">
+      <option value="ko">한국어</option><option value="en">English</option><option value="th">ไทย</option>
+    </select>
+    <button type="button" data-action="logout" data-i18n="logout"></button>
+  </header>
+
+  <section class="andon" aria-live="polite">
+    <div class="andon-head">
+      <h1 id="andonTitle" class="andon-title"></h1>
+      <div id="tally" class="tally"></div>
+    </div>
+    <div id="andonStrip" class="andon-strip"></div>
+  </section>
+
+  <main class="layout">
+    <section class="panel area-viewer">
+      <h2><span data-i18n="cameras"></span><span id="camMeta" class="meta"></span></h2>
+      <div id="camTabs" class="cam-tabs"></div>
+      <div id="stage" class="stage">
+        <img id="frameImg" alt="">
+        <canvas id="overlay"></canvas>
+        <p id="stageMsg" class="stage-msg"></p>
+      </div>
+    </section>
+
+    <section class="panel area-idle">
+      <h2><span data-i18n="idleNow"></span><span id="idleCount" class="count">0</span></h2>
+      <ul id="idleList" class="idle-list"></ul>
+      <div id="offWrap"></div>
+    </section>
+
+    <section class="panel area-stats">
+      <h2>
+        <span data-i18n="shiftStats"></span>
+        <span class="stat-ctrl">
+          <input type="date" id="statDate" aria-label="date">
+          <select id="statShift" aria-label="shift">
+            <option value="D" data-i18n="day"></option>
+            <option value="N" data-i18n="night"></option>
+          </select>
+        </span>
+      </h2>
+      <div class="panel-body table-wrap"><table id="statTable" class="stat-table"></table></div>
+    </section>
+
+    <section class="panel area-events">
+      <h2 data-i18n="events"></h2>
+      <ol id="eventList" class="event-list"></ol>
+    </section>
+  </main>
+</div>
+
+<script type="module" src="assets/dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "rules": {
+    "cctv": {
+      ".read": "auth != null && root.child('cctv/roles').child(auth.uid).exists()",
+      "roles": {
+        "$uid": { ".read": "auth != null && auth.uid === $uid" }
+      },
+      "config": {
+        ".write": "auth != null && root.child('cctv/roles').child(auth.uid).val() === 'admin'"
+      },
+      "plan": {
+        ".write": "auth != null && (root.child('cctv/roles').child(auth.uid).val() === 'admin' || root.child('cctv/roles').child(auth.uid).val() === 'manager')"
+      },
+      "watch": {
+        "$cam": {
+          "$uid": { ".write": "auth != null && auth.uid === $uid && root.child('cctv/roles').child(auth.uid).exists()" }
+        }
+      },
+      "live":   { ".write": "auth != null && (root.child('cctv/roles').child(auth.uid).val() === 'agent' || root.child('cctv/roles').child(auth.uid).val() === 'admin')" },
+      "frames": { ".write": "auth != null && (root.child('cctv/roles').child(auth.uid).val() === 'agent' || root.child('cctv/roles').child(auth.uid).val() === 'admin')" },
+      "thumbs": { ".write": "auth != null && (root.child('cctv/roles').child(auth.uid).val() === 'agent' || root.child('cctv/roles').child(auth.uid).val() === 'admin')" },
+      "stats":  { ".write": "auth != null && (root.child('cctv/roles').child(auth.uid).val() === 'agent' || root.child('cctv/roles').child(auth.uid).val() === 'admin')" },
+      "agents": { ".write": "auth != null && (root.child('cctv/roles').child(auth.uid).val() === 'agent' || root.child('cctv/roles').child(auth.uid).val() === 'admin')" },
+      "events": {
+        ".write": "auth != null && (root.child('cctv/roles').child(auth.uid).val() === 'agent' || root.child('cctv/roles').child(auth.uid).val() === 'admin')",
+        ".indexOn": ["ts"]
+      }
+    }
+  }
+}

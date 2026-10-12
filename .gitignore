@@ -1,0 +1,4 @@
+edge/go2rtc.yaml
+edge/*.exe
+edge/ffmpeg*
+.DS_Store

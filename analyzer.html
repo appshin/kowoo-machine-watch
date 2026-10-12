@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KOWOO Thai 분석 PC</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='3' width='14' height='10' rx='2' fill='%2317202B'/%3E%3Ccircle cx='8' cy='8' r='3' fill='%231FA5C4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<div id="setupMsg" class="setup" hidden></div>
+
+<section id="login" class="login" hidden>
+  <form class="login-box">
+    <div class="brand-row"><span class="brand-mark"></span><strong data-i18n="analyzerTitle"></strong></div>
+    <label><span data-i18n="email"></span><input name="email" type="email" autocomplete="username" required></label>
+    <label><span data-i18n="password"></span><input name="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit" class="btn primary" data-i18n="login"></button>
+    <p class="login-msg" role="alert"></p>
+    <select class="lang-select" aria-label="Language">
+      <option value="ko">한국어</option><option value="en">English</option><option value="th">ไทย</option>
+    </select>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" id="brandMark"></span><span data-i18n="analyzerTitle"></span></div>
+    <select class="lang-select" aria-label="Language">
+      <option value="ko">한국어</option><option value="en">English</option><option value="th">ไทย</option>
+    </select>
+    <button type="button" data-action="logout" data-i18n="logout"></button>
+  </header>
+
+  <div id="warn" class="warn" hidden></div>
+
+  <section class="toolbar panel">
+    <label class="field"><span data-i18n="agentName"></span><input id="agentName" maxlength="24" size="12"></label>
+    <button id="runBtn" type="button" class="btn primary"></button>
+    <label class="check"><input type="checkbox" id="autoStart"><span data-i18n="autoStart"></span></label>
+    <span id="engineStatus" class="meta"></span>
+    <span class="spacer"></span>
+    <button id="addCamBtn" type="button" class="btn admin-only" data-i18n="addCamera"></button>
+    <button id="settingsBtn" type="button" class="btn admin-only" data-i18n="settings"></button>
+  </section>
+  <p class="hint" style="margin:8px 20px 0" data-i18n="agentHint"></p>
+
+  <main id="tiles" class="tiles"></main>
+</div>
+
+<!-- 카메라 설정 -->
+<dialog id="camDlg">
+  <form id="camForm" class="dlg-form">
+    <h3 data-i18n="editCamera"></h3>
+    <label class="field"><span data-i18n="camName"></span><input name="name" required maxlength="40"></label>
+    <label class="field"><span data-i18n="camArea"></span><select name="area" class="area-select"></select></label>
+    <label class="field"><span data-i18n="assignPc"></span><input name="agent" required maxlength="24"></label>
+    <label class="field"><span data-i18n="srcType"></span>
+      <select name="type">
+        <option value="mp4" data-i18n="srcMp4"></option>
+        <option value="jpeg" data-i18n="srcJpeg"></option>
+        <option value="webcam" data-i18n="srcWebcam"></option>
+      </select>
+    </label>
+    <div class="src-go2rtc">
+      <label class="field"><span data-i18n="streamName"></span><input name="stream" placeholder="f1_cam1" maxlength="60"></label>
+      <label class="field" style="margin-top:12px"><span data-i18n="baseUrl"></span><input name="base" placeholder="http://localhost:1984"></label>
+    </div>
+    <div class="src-webcam">
+      <label class="field"><span data-i18n="webcamDevice"></span><select name="deviceId"></select></label>
+      <button type="button" id="loadCams" class="btn small" style="margin-top:8px" data-i18n="loadWebcams"></button>
+    </div>
+    <div class="row">
+      <button type="submit" class="btn primary" data-i18n="save"></button>
+      <button type="button" class="btn" data-close data-i18n="cancel"></button>
+      <span class="spacer"></span>
+      <button type="button" id="camDel" class="btn danger" data-i18n="delete"></button>
+    </div>
+  </form>
+</dialog>
+
+<!-- 설비 영역 편집 -->
+<dialog id="zoneDlg" class="zone-dlg">
+  <div class="zone-wrap">
+    <div class="zone-canvas-wrap"><canvas id="zoneCanvas"></canvas></div>
+    <div class="zone-side">
+      <h3 id="zoneCamName"></h3>
+      <p class="hint" data-i18n="zoneHelp"></p>
+      <ul id="zoneList" class="zone-list"></ul>
+      <button type="button" id="zoneNew" class="btn small" data-i18n="addZone"></button>
+      <form id="zoneForm" class="zone-form">
+        <label class="field"><span data-i18n="eqId"></span><input name="eqId" maxlength="20" placeholder="CNC-12"></label>
+        <label class="field"><span data-i18n="eqName"></span><input name="name" maxlength="40"></label>
+        <label class="field"><span data-i18n="camArea"></span><select name="area" class="area-select"></select></label>
+        <label class="field"><span data-i18n="idleSec"></span><input name="idleSec" type="number" min="10" max="3600" step="5"></label>
+        <div class="draw-toggle">
+          <button type="button" data-draw="eq" data-i18n="drawEq"></button>
+          <button type="button" data-draw="op" data-i18n="drawOp"></button>
+        </div>
+        <p id="zoneState" class="hint"></p>
+        <div class="row">
+          <button type="submit" class="btn primary" data-i18n="saveZone"></button>
+          <button type="button" id="zoneDel" class="btn danger" data-i18n="delete"></button>
+        </div>
+      </form>
+      <button type="button" id="zoneClose" class="btn" data-i18n="close"></button>
+    </div>
+  </div>
+</dialog>
+
+<!-- 분석 설정 -->
+<dialog id="setDlg">
+  <form id="setForm" class="dlg-form">
+    <h3 data-i18n="settings"></h3>
+    <label class="field"><span data-i18n="model"></span>
+      <select name="model"><option value="lite0" data-i18n="modelFast"></option><option value="lite2" data-i18n="modelAccurate"></option></select>
+    </label>
+    <label class="field"><span data-i18n="analyzeMs"></span><input name="analyzeMs" type="number" min="300" max="10000" step="100"></label>
+    <label class="field"><span data-i18n="minScore"></span><input name="minScore" type="number" min="0.1" max="0.9" step="0.05"></label>
+    <label class="check"><input name="crop" type="checkbox"><span data-i18n="cropMode"></span></label>
+    <label class="field"><span data-i18n="overlap"></span><input name="overlap" type="number" min="0.05" max="0.9" step="0.05"></label>
+    <label class="field"><span data-i18n="frameMs"></span><input name="frameMs" type="number" min="1000" max="10000" step="500"></label>
+    <label class="field"><span data-i18n="frameW"></span><input name="frameW" type="number" min="480" max="1280" step="80"></label>
+    <div class="row">
+      <button type="submit" class="btn primary" data-i18n="save"></button>
+      <button type="button" class="btn" data-close data-i18n="cancel"></button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module" src="assets/analyzer.js"></script>
+</body>
+</html>
