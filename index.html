@@ -2,14 +2,14 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="app-version" content="20261120d">
+<meta name="app-version" content="20261120g">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KOWOO Thai 설비 가동 감시</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23D2201A'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=20261120d">
+<link rel="stylesheet" href="assets/style.css?v=20261120g">
 </head>
 <body>
 <div id="setupMsg" class="setup" hidden></div>
@@ -61,7 +61,7 @@
     </section>
 
     <section class="panel area-idle">
-      <h2><span data-i18n="idleNow"></span><span id="idleCount" class="count">0</span></h2>
+      <h2><span data-i18n="eqStatus"></span><span class="row"><span class="meta" data-i18n="idleShort"></span><span id="idleCount" class="count">0</span></span></h2>
       <ul id="idleList" class="idle-list"></ul>
       <div id="offWrap"></div>
     </section>
@@ -86,6 +86,15 @@
     </section>
   </main>
 </div>
+
+<!-- 설비 영상 팝업 -->
+<dialog id="zvDlg" class="zv-dlg">
+  <div class="zv-head">
+    <div><strong id="zvTitle"></strong> <span id="zvState" class="st-badge"></span><div id="zvWhere" class="meta"></div></div>
+    <button type="button" class="btn" id="zvClose" data-i18n="close"></button>
+  </div>
+  <div class="zv-body"><canvas id="zvCanvas"></canvas><p id="zvMsg" class="stage-msg" hidden></p></div>
+</dialog>
 
 <!-- 원격 감시 박스 편집 (admin) -->
 <dialog id="rzDlg" class="zone-dlg">
@@ -131,6 +140,6 @@ setTimeout(function () {
   el.hidden = false;
 }, 4000);
 </script>
-<script type="module" src="assets/dashboard.js?v=20261120d"></script>
+<script type="module" src="assets/dashboard.js?v=20261120g"></script>
 </body>
 </html>
