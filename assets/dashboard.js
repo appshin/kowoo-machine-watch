@@ -2,8 +2,8 @@ import {
   authGate, isConfigured, showSetup, R, onValue, set, remove, onDisconnect, serverTimestamp,
   query, orderByChild, limitToLast, now, SITE, t, applyI18n, bindLangSelects, shiftOf, fmtClock, fmtStamp,
   fmtDur, fmtHM, drawOverlay, areaLabel, stateLabel, esc, natCmp, $
-} from "./core.js?v=20261120d";
-import { initRemoteZones, openRemoteZones, refreshRemoteZones } from "./remote-zones.js?v=20261120d";
+} from "./core.js?v=20261120g";
+import { initRemoteZones, openRemoteZones, refreshRemoteZones } from "./remote-zones.js?v=20261120g";
 
 const STALE_MS = 30000;        // 분석 PC 신호가 30초 넘게 없으면 '신호없음'
 const S = {
@@ -38,6 +38,23 @@ function onReady({ user, role }) {
   });
   setStatKey(shiftOf(now()));
   bindUi();
+  $("#zvClose").addEventListener("click", () => $("#zvDlg").close());
+  $("#statTable").addEventListener("click", e => {
+    const tr = e.target.closest("tr[data-cid]");
+    if (tr) focusZone(tr.dataset.cid, tr.dataset.zid);
+  });
+  // 상황실에서 설비를 눌러 들어온 경우 바로 그 설비 영상 팝업
+  const openFromHash = () => {
+    const m = location.hash.match(/^#zone=([^/]+)\/(.+)$/);
+    if (!m) return;
+    const cid = decodeURIComponent(m[1]), zid = decodeURIComponent(m[2]);
+    history.replaceState(null, "", location.pathname);
+    const tryOpen = (n) => S.cams[cid]?.zones?.[zid] ? focusZone(cid, zid) : n > 0 && setTimeout(() => tryOpen(n - 1), 300);
+    tryOpen(20);
+  };
+  window.addEventListener("hashchange", openFromHash);
+  openFromHash();
+  $("#zvDlg").addEventListener("close", () => { S.zv = null; S.hl = null; drawOverlayOnly(); });
   initRemoteZones({ cams: () => S.cams, img: () => $("#frameImg"), live: () => S.live });
   $("#rzOpen").addEventListener("click", () => openRemoteZones(S.sel));
   window.addEventListener("langchange", renderAll);
@@ -134,57 +151,80 @@ function renderTabs(list) {
   }).join("");
 }
 
+// 설비 상태 목록: 위 안돈 칸과 같은 색으로, 비가동 의심 → 가동 → 계획정지 → 신호없음 순
 function renderIdle(list) {
-  const idle = list.filter(i => i.state === "idle").sort((a, b) => (a.since || 0) - (b.since || 0));
-  const off = list.filter(i => i.state === "off");
+  const order = { idle: 0, run: 1, off: 2, nosig: 3 };
+  const sorted = [...list].sort((a, b) => (order[a.state] - order[b.state]) ||
+    (a.state === "idle" ? (a.since || 0) - (b.since || 0) : 0) ||
+    (SITE.areas.indexOf(a.area) - SITE.areas.indexOf(b.area)) || natCmp(a.z.eqId, b.z.eqId));
+  const idleN = list.filter(i => i.state === "idle").length;
   const canPlan = S.role === "admin" || S.role === "manager";
   const cnt = $("#idleCount");
-  cnt.textContent = idle.length;
-  cnt.classList.toggle("hot", idle.length > 0);
+  cnt.textContent = idleN;
+  cnt.classList.toggle("hot", idleN > 0);
+  $("#offWrap").innerHTML = "";
 
-  $("#idleList").innerHTML = idle.length ? idle.map(i => `
-    <li class="idle-item" data-cid="${esc(i.cid)}" data-zid="${esc(i.zid)}">
+  $("#idleList").innerHTML = sorted.length ? sorted.map(i => {
+    const right = i.state === "idle"
+      ? `<span class="idle-timer" data-since="${i.since || now()}">${fmtDur((now() - (i.since || now())) / 1000)}</span>`
+      : `<span class="st-badge ${i.state}">${esc(stateLabel(i.state))}${i.state === "run" && i.r != null ? ` ${i.r}%` : ""}</span>`;
+    const btn = !canPlan ? "" : i.state === "idle" ? `<button type="button" class="btn small" data-plan="on">${esc(t("planStop"))}</button>`
+      : i.state === "off" ? `<button type="button" class="btn small" data-plan="off">${esc(t("planResume"))}</button>` : "";
+    return `
+    <li class="idle-item st-${i.state}" data-cid="${esc(i.cid)}" data-zid="${esc(i.zid)}">
       <button type="button" class="idle-main" data-go>
         <span class="eq-id">${esc(i.z.eqId)}</span>
         ${i.z.name ? `<span class="eq-name">${esc(i.z.name)}</span>` : ""}
-        <span class="eq-where">${esc(areaLabel(i.area))} / ${esc(i.cam.name)}</span>
-        ${i.r != null ? `<span class="eq-where">${esc(t("ratioShort", { r: i.r, m: i.z.windowMin || 5 }))}</span>` : ""}
+        <span class="eq-where">${esc(areaLabel(i.area))} / ${esc(i.cam.name)}${i.state === "idle" && i.r != null ? `  ·  ${esc(t("ratioShort", { r: i.r, m: i.z.windowMin || 5 }))}` : ""}</span>
       </button>
-      <span class="idle-timer" data-since="${i.since || now()}">${fmtDur((now() - (i.since || now())) / 1000)}</span>
-      ${canPlan ? `<button type="button" class="btn small" data-plan="on">${esc(t("planStop"))}</button>` : ""}
-    </li>`).join("") : `<li class="empty">${esc(t("noIdle"))}</li>`;
-
-  $("#offWrap").innerHTML = off.length ? `
-    <p class="off-head">${esc(t("planned"))} ${off.length}</p>
-    <ul class="off-list">${off.map(i => `
-      <li class="off-item" data-cid="${esc(i.cid)}" data-zid="${esc(i.zid)}">
-        <b>${esc(i.z.eqId)}</b><span>${esc(i.z.name || "")}</span><span class="spacer"></span>
-        ${canPlan ? `<button type="button" class="btn small" data-plan="off">${esc(t("planResume"))}</button>` : ""}
-      </li>`).join("")}
-    </ul>` : "";
+      ${right}
+      ${btn}
+    </li>`;
+  }).join("") : `<li class="empty">${esc(t("noCameras"))}</li>`;
 }
 
 function renderStats() {
+  // 지금 보고 있는 근무조가 현재 근무조면 "현재 상태" 칸을 보여 줌
+  const cur = shiftOf(now());
+  const isNow = S.statKey && S.statKey.date === cur.date && S.statKey.shift === cur.shift;
+  const live = {};
+  for (const i of items()) live[`${i.cid}__${i.zid}`] = i;
   const rows = [];
   for (const cid of camIds()) {
     for (const [zid, z] of Object.entries(S.cams[cid].zones || {})) {
       const s = S.stats[`${cid}__${zid}`] || {};
-      rows.push({ z, run: s.run || 0, idle: s.idle || 0 });
+      const it = live[`${cid}__${zid}`];
+      rows.push({ z, cam: S.cams[cid], cid, zid, run: s.run || 0, idle: s.idle || 0, it,
+        area: z.area || S.cams[cid].area || "ETC" });
     }
   }
   const tbl = $("#statTable");
   const totRun = rows.reduce((a, r) => a + r.run, 0), totIdle = rows.reduce((a, r) => a + r.idle, 0);
-  if (!rows.length || totRun + totIdle === 0) { tbl.innerHTML = `<tbody><tr><td class="empty">${esc(t("noData"))}</td></tr></tbody>`; return; }
-  rows.sort((a, b) => b.idle - a.idle || natCmp(a.z.eqId, b.z.eqId));
+  if (!rows.length || (!isNow && totRun + totIdle === 0)) { tbl.innerHTML = `<tbody><tr><td class="empty">${esc(t("noData"))}</td></tr></tbody>`; return; }
+  // 현재 비가동 의심 → 오래 지속된 순, 나머지는 누적 비가동 시간 순
+  const curIdle = r => isNow && r.it?.state === "idle";
+  rows.sort((a, b) => (curIdle(b) - curIdle(a)) ||
+    (curIdle(a) ? (a.it.since || 0) - (b.it.since || 0) : 0) ||
+    b.idle - a.idle || natCmp(a.z.eqId, b.z.eqId));
   const rate = (i, r) => (i + r) ? Math.round((i / (i + r)) * 100) : 0;
   const rateCell = (i, r) => `<span class="rate">${rate(i, r)}%<i><b style="width:${rate(i, r)}%"></b></i></span>`;
+  const nowCell = r => {
+    const it = r.it;
+    if (!it) return "";
+    if (it.state === "idle") {
+      const since = it.since || now();
+      return `<span class="st-badge idle">${esc(t("idle"))} <b data-since="${since}">${fmtDur((now() - since) / 1000)}</b></span>`;
+    }
+    return `<span class="st-badge ${it.state}">${esc(stateLabel(it.state))}</span>`;
+  };
   tbl.innerHTML = `
-    <thead><tr><th>${esc(t("equipment"))}</th><th class="num">${esc(t("runTime"))}</th><th class="num">${esc(t("idleTime"))}</th><th class="num">${esc(t("idleRate"))}</th></tr></thead>
-    <tbody>${rows.map(r => `<tr>
-      <td><b>${esc(r.z.eqId)}</b> ${esc(r.z.name || "")}</td>
+    <thead><tr><th>${esc(t("equipment"))}</th>${isNow ? `<th>${esc(t("nowState"))}</th>` : ""}<th class="num">${esc(t("runTime"))}</th><th class="num">${esc(t("idleTime"))}</th><th class="num">${esc(t("idleRate"))}</th></tr></thead>
+    <tbody>${rows.map(r => `<tr class="${curIdle(r) ? "row-idle" : ""}" data-cid="${esc(r.cid)}" data-zid="${esc(r.zid)}">
+      <td><b>${esc(r.z.eqId)}</b> ${esc(r.z.name || "")}<div class="stat-where">${esc(areaLabel(r.area))} / ${esc(r.cam.name)}</div></td>
+      ${isNow ? `<td>${nowCell(r)}</td>` : ""}
       <td class="num">${fmtHM(r.run)}</td><td class="num">${fmtHM(r.idle)}</td>
       <td class="num">${rateCell(r.idle, r.run)}</td></tr>`).join("")}</tbody>
-    <tfoot><tr><td>${esc(t("total"))}</td><td class="num">${fmtHM(totRun)}</td><td class="num">${fmtHM(totIdle)}</td><td class="num">${rateCell(totIdle, totRun)}</td></tr></tfoot>`;
+    <tfoot><tr><td>${esc(t("total"))}</td>${isNow ? "<td></td>" : ""}<td class="num">${fmtHM(totRun)}</td><td class="num">${fmtHM(totIdle)}</td><td class="num">${rateCell(totIdle, totRun)}</td></tr></tfoot>`;
 }
 
 function renderEvents() {
@@ -252,6 +292,7 @@ function drawViewer() {
   drawOverlayOnly();
 }
 function drawOverlayOnly() {
+  drawZoneView();
   if (!cv.width) return;
   ctx.clearRect(0, 0, cv.width, cv.height);
   const cam = S.cams[S.sel];
@@ -300,13 +341,32 @@ function bindUi() {
     if (S.sound) { S.audio ||= new (window.AudioContext || window.webkitAudioContext)(); S.audio.resume(); beep(); }
   });
 }
+// 설비를 누르면 그 카메라 영상을 팝업으로 크게 (감시 구역은 흰 테두리로 강조)
 function focusZone(cid, zid) {
   selectCam(cid);
   S.hl = zid;
-  clearTimeout(focusZone.tm);
-  focusZone.tm = setTimeout(() => { S.hl = null; drawOverlayOnly(); }, 6000);
-  drawOverlayOnly();
-  if (matchMedia("(max-width: 900px)").matches) $("#stage").scrollIntoView({ behavior: "smooth", block: "center" });
+  S.zv = { cid, zid };
+  $("#zvDlg").showModal();
+  drawZoneView();
+}
+function drawZoneView() {
+  if (!S.zv || !$("#zvDlg").open) return;
+  const { cid, zid } = S.zv;
+  const it = items().find(i => i.cid === cid && i.zid === zid);
+  const cam = S.cams[cid];
+  if (!it || !cam) { $("#zvDlg").close(); return; }
+  $("#zvTitle").textContent = it.z.eqId + (it.z.name ? "  " + it.z.name : "");
+  const st = $("#zvState");
+  st.className = "st-badge " + it.state;
+  st.textContent = stateLabel(it.state) + (it.state === "idle" && it.since ? "  " + fmtDur((now() - it.since) / 1000) : "") + (it.r != null ? `  ${it.r}%` : "");
+  $("#zvWhere").textContent = `${areaLabel(it.area)} / ${cam.name}`;
+  const cvs = $("#zvCanvas"), msg = $("#zvMsg");
+  if (!img.getAttribute("src") || !img.naturalWidth) { msg.textContent = t("waitingFrame"); msg.hidden = false; return; }
+  msg.hidden = true;
+  if (cvs.width !== img.naturalWidth || cvs.height !== img.naturalHeight) { cvs.width = img.naturalWidth; cvs.height = img.naturalHeight; }
+  const c = cvs.getContext("2d");
+  c.drawImage(img, 0, 0);
+  drawOverlay(c, cvs.width, cvs.height, cam.zones, statesFor(cid), [], { blink: S.blink, highlight: zid });
 }
 
 function checkAlerts() {

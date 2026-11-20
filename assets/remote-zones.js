@@ -1,8 +1,8 @@
 // 원격 감시 박스 편집 (대시보드용)
 // 분석 PC가 올려 주는 최신 CCTV 화면 위에 박스를 그려 Firebase에 저장한다.
 // 분석 PC는 설정 변경을 실시간으로 받아 바로 새 박스로 분석한다.
-import { R, set, remove, SITE, t, areaLabel, esc, natCmp, $, COLORS } from "./core.js?v=20261120d";
-import { createShapeEditor, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120d";
+import { R, set, remove, SITE, t, areaLabel, esc, natCmp, $, COLORS } from "./core.js?v=20261120g";
+import { createShapeEditor, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120g";
 
 const Z = { cid: null, zid: null, draft: null, timer: null, ed: null };
 let ctxFns = null;

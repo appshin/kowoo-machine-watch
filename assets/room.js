@@ -2,7 +2,7 @@ import {
   authGate, isConfigured, showSetup, R, onValue, set, remove, onDisconnect, serverTimestamp,
   now, SITE, t, applyI18n, bindLangSelects, fmtClock, fmtDur, areaLabel, stateLabel, esc, $,
   buildItems, camFreshOf, beep
-} from "./core.js?v=20261120d";
+} from "./core.js?v=20261120g";
 
 // 종합상황실: 비가동 의심 설비만 크게 모아 보여 줌 (사무실 벽 모니터용)
 const S = { user: null, role: null, cams: {}, live: {}, plan: {}, crops: {}, thumbs: {}, sound: false, prevIdle: null, watchRef: null };
@@ -60,10 +60,10 @@ function render() {
     <div class="andon-group">
       <span class="andon-area">${esc(areaLabel(area))}</span>
       <div class="andon-segs">${arr.map(i => `
-        <span class="seg ${i.state}" title="${esc(i.z.eqId)}: ${esc(stateLabel(i.state))}">
+        <a class="seg ${i.state}" href="index.html#zone=${encodeURIComponent(i.cid)}/${encodeURIComponent(i.zid)}" target="kcw_dash" title="${esc(i.z.eqId)}: ${esc(stateLabel(i.state))}">
           <span>${esc(i.z.eqId)}</span>
           ${i.state === "idle" ? `<small data-since="${i.since || now()}"></small>` : `<small>${esc(stateLabel(i.state))}</small>`}
-        </span>`).join("")}
+        </a>`).join("")}
       </div>
     </div>`).join("");
 

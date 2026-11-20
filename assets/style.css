@@ -240,3 +240,37 @@ body.room .seg { cursor: default; }
 .zone-canvas-wrap { min-width: 0; }
 .draw-toggle button.on { border-color: var(--person); background: #E6F6FA; }
 #rzCanvas, #zoneCanvas { cursor: crosshair; }
+
+/* 설비 상태 목록: 상태별 색 */
+.idle-item.st-run { border-left-color: var(--run); }
+.idle-item.st-off { border-left-color: var(--off); }
+.idle-item.st-nosig { border-left-color: var(--nosig); }
+.st-badge { display: inline-block; font-size: 14px; font-weight: 600; padding: 3px 10px; border-radius: 12px; color: #fff; background: var(--slate); white-space: nowrap; }
+.st-badge.run { background: var(--run); }
+.st-badge.idle { background: var(--idle); }
+.st-badge.off { background: var(--off); }
+.st-badge.nosig { background: var(--nosig); color: #2A1F00; }
+.idle-list { max-height: 640px; overflow-y: auto; }
+.idle-main { cursor: pointer; }
+.seg { cursor: pointer; }
+/* 설비 영상 팝업 */
+.zv-dlg { width: min(1200px, 96vw); }
+.zv-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 12px 16px; }
+.zv-head strong { font-size: 22px; }
+.zv-body { position: relative; background: #10171F; min-height: 200px; }
+#zvCanvas { display: block; width: 100%; height: auto; }
+
+a.seg { text-decoration: none; }
+body.room .seg { cursor: pointer; }
+
+/* 근무조별 가동 현황: 현재 상태 */
+.stat-where { font-size: 12px; color: var(--slate); font-weight: 400; }
+.stat-table tbody tr { cursor: pointer; }
+.stat-table tbody tr:hover { background: #fff; }
+.stat-table tr.row-idle td:first-child { box-shadow: inset 4px 0 0 var(--idle); }
+.stat-table .st-badge { font-size: 13px; padding: 2px 8px; }
+@media (max-width: 600px) {
+  .stat-table { font-size: 13px; }
+  .stat-table th, .stat-table td { padding: 6px 4px; }
+  .rate i { display: none; }
+}

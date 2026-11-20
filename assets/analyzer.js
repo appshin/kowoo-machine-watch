@@ -2,9 +2,9 @@ import {
   authGate, isConfigured, showSetup, R, onValue, set, update, push, remove, onDisconnect,
   serverTimestamp, increment, now, SITE, t, applyI18n, bindLangSelects, shiftOf, drawOverlay,
   areaLabel, esc, natCmp, $, COLORS, ALERT, tl, tzParts, fmtClock
-} from "./core.js?v=20261120d";
-import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge } from "./motion.js?v=20261120d";
-import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120d";
+} from "./core.js?v=20261120g";
+import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge } from "./motion.js?v=20261120g";
+import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120g";
 
 const DEFAULTS = { analyzeMs: 1000, pixThresh: 22, skipPct: 40, frameMs: 2000, frameW: 960 };
 const CROP_MS = 5000, ALERT_CHECK_MS = 30000;
