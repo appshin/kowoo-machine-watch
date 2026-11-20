@@ -1,0 +1,6 @@
+Windows Registry Editor Version 5.00
+
+; Optional: lets the analysis page start screen capture after a reboot without a click.
+; Double-click as administrator, then restart Chrome.
+[HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Google\Chrome\ScreenCaptureWithoutGestureAllowedForOrigins]
+"1"="https://appshin.github.io"

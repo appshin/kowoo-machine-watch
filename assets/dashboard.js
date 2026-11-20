@@ -56,12 +56,12 @@ function items() {
   for (const cid of camIds()) {
     const cam = S.cams[cid], lv = S.live[cid], fresh = camFresh(cid);
     for (const [zid, z] of Object.entries(cam.zones || {})) {
-      let state, since;
+      let state, since, r = null, m = 0;
       const pl = S.plan?.[cid]?.[zid];
       if (pl) { state = "off"; since = pl.ts; }
       else if (!fresh) { state = "nosig"; since = lv?.ts; }
-      else { const zs = lv.zones?.[zid]; state = zs?.state || "nosig"; since = zs?.since; }
-      out.push({ cid, zid, cam, z, state, since, area: z.area || cam.area || "ETC" });
+      else { const zs = lv.zones?.[zid]; state = zs?.state || "nosig"; since = zs?.since; r = zs?.r ?? null; m = zs?.m || 0; }
+      out.push({ cid, zid, cam, z, state, since, r, m, area: z.area || cam.area || "ETC" });
     }
   }
   const order = SITE.areas;
@@ -69,7 +69,7 @@ function items() {
 }
 function statesFor(cid) {
   const o = {};
-  for (const i of items()) if (i.cid === cid) o[i.zid] = { state: i.state, since: i.since };
+  for (const i of items()) if (i.cid === cid) o[i.zid] = { state: i.state, since: i.since, r: i.r, m: i.m };
   return o;
 }
 
@@ -144,6 +144,7 @@ function renderIdle(list) {
         <span class="eq-id">${esc(i.z.eqId)}</span>
         ${i.z.name ? `<span class="eq-name">${esc(i.z.name)}</span>` : ""}
         <span class="eq-where">${esc(areaLabel(i.area))} / ${esc(i.cam.name)}</span>
+        ${i.r != null ? `<span class="eq-where">${esc(t("ratioShort", { r: i.r, m: i.z.windowMin || 5 }))}</span>` : ""}
       </button>
       <span class="idle-timer" data-since="${i.since || now()}">${fmtDur((now() - (i.since || now())) / 1000)}</span>
       ${canPlan ? `<button type="button" class="btn small" data-plan="on">${esc(t("planStop"))}</button>` : ""}

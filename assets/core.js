@@ -40,15 +40,15 @@ const DICT = {
     noRole: "이 계정은 아직 권한이 없습니다. 관리자에게 다음 UID 등록을 요청하세요: {uid}",
     notConfigured: "assets/firebase-config.js에 Firebase 설정값을 넣은 뒤 다시 여세요. README 1단계를 참고하세요.",
     siteTime: "태국", krTime: "한국", sound: "알림음",
-    allRunning: "모든 설비에 작업자가 있습니다", idleHeadline: "작업자 없는 설비 {n}대",
+    allRunning: "모든 설비가 가동 중입니다", idleHeadline: "비가동 의심 설비 {n}대",
     noCameras: "등록된 카메라가 없습니다. 공장 분석 PC에서 카메라와 설비를 등록하세요.",
-    run: "가동", idle: "비가동", off: "계획정지", nosig: "신호없음",
+    run: "가동", idle: "비가동 의심", off: "계획정지", nosig: "신호없음",
     cameras: "카메라", waitingFrame: "영상을 기다리는 중입니다. 공장 분석 PC가 켜져 있는지 확인하세요.",
     frameStale: "최신 영상을 불러오는 중입니다…", camOffline: "연결 끊김",
     shiftStats: "근무조별 가동 현황", day: "주간", night: "야간",
     equipment: "설비", runTime: "가동", idleTime: "비가동", idleRate: "비가동률", total: "합계",
     noData: "이 근무조에 기록된 데이터가 없습니다.",
-    idleNow: "지금 작업자 없는 설비", noIdle: "작업자 없는 설비가 없습니다.",
+    idleNow: "지금 비가동 의심 설비", noIdle: "비가동 의심 설비가 없습니다.",
     planStop: "계획정지 처리", planResume: "감시 재개", planned: "계획정지 설비",
     events: "상태 변경 기록", noEvents: "아직 기록이 없습니다.",
     evIdleStart: "비가동 시작", evIdleEnd: "비가동 종료", evDur: "{d} 동안",
@@ -57,7 +57,7 @@ const DICT = {
     start: "분석 시작", stop: "분석 중지", autoStart: "열면 자동 시작",
     loadingModel: "사람 인식 모델을 불러오는 중…", modelFail: "인식 모델을 불러오지 못했습니다. 인터넷 연결을 확인하세요.",
     modelReady: "인식 모델 준비됨",
-    addCamera: "카메라 추가", editCamera: "카메라 설정", editZones: "설비 영역 편집", settings: "분석 설정",
+    addCamera: "카메라 추가", editCamera: "카메라 설정", editZones: "감시 박스 편집", settings: "분석 설정",
     noLocalCams: "이 PC({pc})에 지정된 카메라가 없습니다. 카메라를 추가하거나 PC 이름을 확인하세요.",
     otherCams: "다른 PC에 지정된 카메라",
     camName: "카메라 이름", camArea: "기본 구역", assignPc: "담당 PC 이름", srcType: "영상 입력",
@@ -66,7 +66,7 @@ const DICT = {
     webcamDevice: "웹캠", loadWebcams: "웹캠 목록 불러오기",
     save: "저장", cancel: "취소", delete: "삭제", close: "닫기",
     confirmDelCam: "이 카메라와 등록된 설비 영역을 모두 삭제할까요?",
-    zoneHelp: "설비번호를 입력하고, 영상 위에 설비 박스와 작업자가 서는 위치를 각각 드래그해 그린 뒤 저장하세요. 작업자 위치는 사람 몸 전체가 들어가게 그리세요.",
+    zoneHelp: "설비번호를 입력하고 화면 위에 감시 박스를 드래그해 그린 뒤 저장하세요. 작업자가 서서 일하는 자리나 소재 투입부처럼 가동 중이면 움직임이 생기는 곳을 그리고, 경광등·시계 글자·통로는 빼세요.",
     addZone: "새 설비", eqId: "설비번호", eqName: "설비명", idleSec: "작업자 부재 판정 시간(초)",
     drawEq: "설비 박스 그리기", drawOp: "작업자 위치 그리기", saveZone: "설비 저장",
     zoneStatus: "설비 박스: {a} / 작업자 위치: {b}", done: "그림", missing: "없음",
@@ -77,8 +77,15 @@ const DICT = {
     stOnline: "분석 중", stPreview: "미리보기 (분석 중지됨)", stOffline: "영상 없음",
     persons: "사람 {n}", watching: "원격 시청 {n}",
     model: "인식 모델", modelFast: "빠름 (EfficientDet Lite0)", modelAccurate: "정확 (EfficientDet Lite2, 그래픽카드 권장)",
-    analyzeMs: "분석 주기 (ms)", minScore: "최소 신뢰도 (0~1)", cropMode: "설비 주변을 확대해서 인식 (멀리 있는 사람 인식 향상)",
-    overlap: "작업자 위치 겹침 비율 (0~1)", frameMs: "원격 영상 전송 주기 (ms)", frameW: "원격 영상 가로 크기 (px)"
+    analyzeMs: "확인 간격 (ms, 기본 1000)", minScore: "최소 신뢰도 (0~1)", cropMode: "설비 주변을 확대해서 인식 (멀리 있는 사람 인식 향상)",
+    overlap: "작업자 위치 겹침 비율 (0~1)", frameMs: "원격 영상 전송 주기 (ms)", frameW: "원격 영상 가로 크기 (px)",
+    srcScreen: "CCTV 프로그램 화면 (권장)", screenHint: "저장 후 카메라 칸의 [CCTV 화면 선택]을 눌러 CCTV 프로그램 창을 고르세요. CCTV 창은 최소화하지 말고 분할 화면을 고정해 두세요.",
+    pickScreen: "CCTV 화면 선택", repickScreen: "화면 다시 선택", needPick: "CCTV 프로그램 창을 선택해야 분석할 수 있습니다.", needPickShort: "화면 선택 필요",
+    skippedNow: "화면 전체 변화로 이번 회차 제외",
+    windowMin: "판단 시간 (분)", minRatio: "가동 기준: 움직임 비율 (%)", sens: "민감도 (1~10)",
+    boxStatus: "감시 박스: {a}", liveRatio: "최근 {m}분 움직임 {r}%", zoneNeedBox: "감시 박스를 그려야 합니다.",
+    ratioShort: "최근 {m}분 움직임 {r}%",
+    pixThresh: "화소 변화 기준 (밝기 차이, 기본 22)", skipPct: "화면 전체가 이 % 이상 바뀌면 그 회차 무시 (조명·야간 전환)",
   },
   en: {
     appTitle: "KOWOO Thai machine watch", analyzerTitle: "KOWOO Thai analysis PC",
@@ -87,15 +94,15 @@ const DICT = {
     noRole: "This account has no access yet. Ask an admin to register this UID: {uid}",
     notConfigured: "Enter your Firebase settings in assets/firebase-config.js, then reload. See step 1 in the README.",
     siteTime: "Thailand", krTime: "Korea", sound: "Alert sound",
-    allRunning: "Every machine has an operator", idleHeadline: "{n} machines without an operator",
+    allRunning: "Every machine is running", idleHeadline: "{n} machines suspected idle",
     noCameras: "No cameras yet. Register cameras and machines on the factory analysis PC.",
-    run: "Running", idle: "Idle", off: "Planned stop", nosig: "No signal",
+    run: "Running", idle: "Suspected idle", off: "Planned stop", nosig: "No signal",
     cameras: "Cameras", waitingFrame: "Waiting for video. Check that the factory analysis PC is on.",
     frameStale: "Loading the latest frame…", camOffline: "Offline",
     shiftStats: "Utilization by shift", day: "Day shift", night: "Night shift",
     equipment: "Machine", runTime: "Running", idleTime: "Idle", idleRate: "Idle rate", total: "Total",
     noData: "No data recorded for this shift.",
-    idleNow: "Machines without an operator", noIdle: "Every machine has an operator.",
+    idleNow: "Machines suspected idle", noIdle: "No machine is suspected idle.",
     planStop: "Mark planned stop", planResume: "Resume watching", planned: "Planned stops",
     events: "Status log", noEvents: "No records yet.",
     evIdleStart: "Went idle", evIdleEnd: "Idle ended", evDur: "for {d}",
@@ -104,7 +111,7 @@ const DICT = {
     start: "Start analysis", stop: "Stop analysis", autoStart: "Start automatically",
     loadingModel: "Loading the person detection model…", modelFail: "Could not load the detection model. Check the internet connection.",
     modelReady: "Detection model ready",
-    addCamera: "Add camera", editCamera: "Camera settings", editZones: "Edit machine areas", settings: "Analysis settings",
+    addCamera: "Add camera", editCamera: "Camera settings", editZones: "Edit watch boxes", settings: "Analysis settings",
     noLocalCams: "No cameras are assigned to this PC ({pc}). Add a camera or check the PC name.",
     otherCams: "Cameras on other PCs",
     camName: "Camera name", camArea: "Default area", assignPc: "Assigned PC", srcType: "Video input",
@@ -113,7 +120,7 @@ const DICT = {
     webcamDevice: "Webcam", loadWebcams: "Find webcams",
     save: "Save", cancel: "Cancel", delete: "Delete", close: "Close",
     confirmDelCam: "Delete this camera and all its machine areas?",
-    zoneHelp: "Enter the machine number, drag a box around the machine and another where the operator stands, then save. Draw the operator spot large enough to hold a whole person.",
+    zoneHelp: "Enter the machine number, drag a watch box on the screen, then save. Draw it where something moves while the machine runs, such as the operator spot or the loading area. Leave out stack lights, clock text and aisles.",
     addZone: "New machine", eqId: "Machine no.", eqName: "Machine name", idleSec: "Idle after no operator for (sec)",
     drawEq: "Draw machine box", drawOp: "Draw operator spot", saveZone: "Save machine",
     zoneStatus: "Machine box: {a} / Operator spot: {b}", done: "drawn", missing: "missing",
@@ -124,8 +131,15 @@ const DICT = {
     stOnline: "Analyzing", stPreview: "Preview (analysis stopped)", stOffline: "No video",
     persons: "{n} people", watching: "{n} watching",
     model: "Detection model", modelFast: "Fast (EfficientDet Lite0)", modelAccurate: "Accurate (EfficientDet Lite2, GPU recommended)",
-    analyzeMs: "Analysis interval (ms)", minScore: "Minimum confidence (0–1)", cropMode: "Zoom in around machines (better for distant people)",
-    overlap: "Operator spot overlap ratio (0–1)", frameMs: "Remote video interval (ms)", frameW: "Remote video width (px)"
+    analyzeMs: "Check interval (ms, default 1000)", minScore: "Minimum confidence (0–1)", cropMode: "Zoom in around machines (better for distant people)",
+    overlap: "Operator spot overlap ratio (0–1)", frameMs: "Remote video interval (ms)", frameW: "Remote video width (px)",
+    srcScreen: "CCTV program screen (recommended)", screenHint: "After saving, press [Choose CCTV screen] on the camera tile and pick the CCTV program window. Do not minimize it, and keep the split layout fixed.",
+    pickScreen: "Choose CCTV screen", repickScreen: "Choose again", needPick: "Choose the CCTV program window to start analysis.", needPickShort: "Choose a screen",
+    skippedNow: "whole screen changed, sample skipped",
+    windowMin: "Judgment window (min)", minRatio: "Running if motion ratio ≥ (%)", sens: "Sensitivity (1–10)",
+    boxStatus: "Watch box: {a}", liveRatio: "Motion {r}% in last {m} min", zoneNeedBox: "Draw the watch box.",
+    ratioShort: "Motion {r}% in last {m} min",
+    pixThresh: "Pixel change threshold (brightness, default 22)", skipPct: "Skip a sample when this % of the whole screen changes (lights, night mode)",
   },
   th: {
     appTitle: "KOWOO Thai ตรวจการเดินเครื่อง", analyzerTitle: "KOWOO Thai เครื่องวิเคราะห์ภาพ",
@@ -134,15 +148,15 @@ const DICT = {
     noRole: "บัญชีนี้ยังไม่มีสิทธิ์ โปรดให้ผู้ดูแลระบบลงทะเบียน UID นี้: {uid}",
     notConfigured: "กรุณาใส่ค่า Firebase ใน assets/firebase-config.js แล้วเปิดใหม่ ดูขั้นตอนที่ 1 ใน README",
     siteTime: "ไทย", krTime: "เกาหลี", sound: "เสียงเตือน",
-    allRunning: "ทุกเครื่องมีพนักงานประจำ", idleHeadline: "เครื่องไม่มีพนักงาน {n} เครื่อง",
+    allRunning: "ทุกเครื่องกำลังเดิน", idleHeadline: "เครื่องที่สงสัยว่าหยุด {n} เครื่อง",
     noCameras: "ยังไม่มีกล้อง กรุณาลงทะเบียนกล้องและเครื่องจักรที่ PC วิเคราะห์ในโรงงาน",
-    run: "เดินเครื่อง", idle: "หยุด", off: "หยุดตามแผน", nosig: "ไม่มีสัญญาณ",
+    run: "เดินเครื่อง", idle: "สงสัยว่าหยุด", off: "หยุดตามแผน", nosig: "ไม่มีสัญญาณ",
     cameras: "กล้อง", waitingFrame: "กำลังรอภาพ โปรดตรวจสอบว่า PC วิเคราะห์ในโรงงานเปิดอยู่",
     frameStale: "กำลังโหลดภาพล่าสุด…", camOffline: "ขาดการเชื่อมต่อ",
     shiftStats: "การเดินเครื่องตามกะ", day: "กะกลางวัน", night: "กะกลางคืน",
     equipment: "เครื่องจักร", runTime: "เดิน", idleTime: "หยุด", idleRate: "อัตราหยุด", total: "รวม",
     noData: "ไม่มีข้อมูลของกะนี้",
-    idleNow: "เครื่องที่ไม่มีพนักงานตอนนี้", noIdle: "ทุกเครื่องมีพนักงาน",
+    idleNow: "เครื่องที่สงสัยว่าหยุด", noIdle: "ไม่มีเครื่องที่สงสัยว่าหยุด",
     planStop: "ตั้งเป็นหยุดตามแผน", planResume: "กลับมาตรวจ", planned: "เครื่องหยุดตามแผน",
     events: "บันทึกสถานะ", noEvents: "ยังไม่มีบันทึก",
     evIdleStart: "เริ่มหยุด", evIdleEnd: "สิ้นสุดการหยุด", evDur: "นาน {d}",
@@ -151,7 +165,7 @@ const DICT = {
     start: "เริ่มวิเคราะห์", stop: "หยุดวิเคราะห์", autoStart: "เริ่มอัตโนมัติเมื่อเปิด",
     loadingModel: "กำลังโหลดโมเดลตรวจจับคน…", modelFail: "โหลดโมเดลไม่สำเร็จ โปรดตรวจสอบอินเทอร์เน็ต",
     modelReady: "โมเดลพร้อมแล้ว",
-    addCamera: "เพิ่มกล้อง", editCamera: "ตั้งค่ากล้อง", editZones: "แก้ไขพื้นที่เครื่อง", settings: "ตั้งค่าการวิเคราะห์",
+    addCamera: "เพิ่มกล้อง", editCamera: "ตั้งค่ากล้อง", editZones: "แก้ไขกรอบตรวจ", settings: "ตั้งค่าการวิเคราะห์",
     noLocalCams: "ยังไม่มีกล้องที่กำหนดให้เครื่องนี้ ({pc}) กรุณาเพิ่มกล้องหรือตรวจสอบชื่อเครื่อง",
     otherCams: "กล้องที่ใช้เครื่องอื่น",
     camName: "ชื่อกล้อง", camArea: "พื้นที่หลัก", assignPc: "เครื่องที่รับผิดชอบ", srcType: "แหล่งภาพ",
@@ -160,7 +174,7 @@ const DICT = {
     webcamDevice: "เว็บแคม", loadWebcams: "ค้นหาเว็บแคม",
     save: "บันทึก", cancel: "ยกเลิก", delete: "ลบ", close: "ปิด",
     confirmDelCam: "ลบกล้องนี้และพื้นที่เครื่องทั้งหมดหรือไม่?",
-    zoneHelp: "ใส่หมายเลขเครื่อง ลากกรอบรอบเครื่องจักร และลากกรอบจุดที่พนักงานยืน แล้วกดบันทึก กรอบจุดยืนต้องใหญ่พอให้ทั้งตัวคนอยู่ข้างใน",
+    zoneHelp: "ใส่หมายเลขเครื่อง ลากกรอบตรวจบนหน้าจอ แล้วกดบันทึก ให้วาดตรงจุดที่มีการเคลื่อนไหวเมื่อเครื่องเดิน เช่น จุดยืนพนักงานหรือจุดป้อนชิ้นงาน ไม่รวมไฟสัญญาณ ตัวเลขนาฬิกา และทางเดิน",
     addZone: "เครื่องใหม่", eqId: "หมายเลขเครื่อง", eqName: "ชื่อเครื่อง", idleSec: "ถือว่าหยุดเมื่อไม่มีคน (วินาที)",
     drawEq: "วาดกรอบเครื่อง", drawOp: "วาดจุดยืนพนักงาน", saveZone: "บันทึกเครื่อง",
     zoneStatus: "กรอบเครื่อง: {a} / จุดยืน: {b}", done: "วาดแล้ว", missing: "ยังไม่มี",
@@ -171,8 +185,15 @@ const DICT = {
     stOnline: "กำลังวิเคราะห์", stPreview: "แสดงตัวอย่าง (หยุดวิเคราะห์)", stOffline: "ไม่มีภาพ",
     persons: "คน {n}", watching: "ดูอยู่ {n}",
     model: "โมเดลตรวจจับ", modelFast: "เร็ว (EfficientDet Lite0)", modelAccurate: "แม่นยำ (EfficientDet Lite2 แนะนำการ์ดจอ)",
-    analyzeMs: "รอบการวิเคราะห์ (ms)", minScore: "ความมั่นใจขั้นต่ำ (0–1)", cropMode: "ขยายบริเวณรอบเครื่อง (ตรวจจับคนที่อยู่ไกลได้ดีขึ้น)",
-    overlap: "สัดส่วนการทับจุดยืน (0–1)", frameMs: "รอบส่งภาพระยะไกล (ms)", frameW: "ความกว้างภาพระยะไกล (px)"
+    analyzeMs: "รอบการตรวจ (ms ค่าเริ่มต้น 1000)", minScore: "ความมั่นใจขั้นต่ำ (0–1)", cropMode: "ขยายบริเวณรอบเครื่อง (ตรวจจับคนที่อยู่ไกลได้ดีขึ้น)",
+    overlap: "สัดส่วนการทับจุดยืน (0–1)", frameMs: "รอบส่งภาพระยะไกล (ms)", frameW: "ความกว้างภาพระยะไกล (px)",
+    srcScreen: "หน้าจอโปรแกรม CCTV (แนะนำ)", screenHint: "บันทึกแล้วกด [เลือกหน้าจอ CCTV] ที่ช่องกล้อง แล้วเลือกหน้าต่างโปรแกรม CCTV อย่าย่อหน้าต่าง และอย่าเปลี่ยนรูปแบบการแบ่งจอ",
+    pickScreen: "เลือกหน้าจอ CCTV", repickScreen: "เลือกใหม่", needPick: "ต้องเลือกหน้าต่างโปรแกรม CCTV ก่อนจึงจะวิเคราะห์ได้", needPickShort: "ต้องเลือกหน้าจอ",
+    skippedNow: "ทั้งจอเปลี่ยน ข้ามรอบนี้",
+    windowMin: "ช่วงเวลาตัดสิน (นาที)", minRatio: "ถือว่าเดินเครื่องเมื่อมีการเคลื่อนไหว ≥ (%)", sens: "ความไว (1–10)",
+    boxStatus: "กรอบตรวจ: {a}", liveRatio: "เคลื่อนไหว {r}% ใน {m} นาทีล่าสุด", zoneNeedBox: "กรุณาวาดกรอบตรวจ",
+    ratioShort: "เคลื่อนไหว {r}% ใน {m} นาทีล่าสุด",
+    pixThresh: "เกณฑ์การเปลี่ยนแปลงพิกเซล (ความสว่าง ค่าเริ่มต้น 22)", skipPct: "ข้ามรอบเมื่อทั้งจอเปลี่ยนเกิน % นี้ (ไฟ, โหมดกลางคืน)",
   }
 };
 const LANGS = ["ko", "en", "th"];
@@ -289,6 +310,7 @@ export function fmtHM(sec) {
 /* ---------- overlay ---------- */
 // zones: {zid: {eqId, eq:[x,y,w,h], op:[x,y,w,h]}} (0~1 정규화 좌표)
 // states: {zid: {state, since}}, persons: [[x,y,w,h], ...]
+export const FILL = { run: "rgba(30,132,73,.5)", idle: "rgba(210,32,26,.5)", off: "rgba(139,148,158,.5)", nosig: "rgba(217,154,0,.35)" };
 export function drawOverlay(ctx, W, H, zones, states, persons, opt = {}) {
   const lw = Math.max(2, Math.round(W / 420));
   const fs = Math.max(12, Math.round(W / 58));
@@ -297,45 +319,36 @@ export function drawOverlay(ctx, W, H, zones, states, persons, opt = {}) {
   ctx.font = `600 ${fs}px ${FONT}`;
   ctx.textBaseline = "top";
 
-  ctx.strokeStyle = COLORS.person;
-  ctx.lineWidth = Math.max(1, lw * 0.6);
-  for (const p of persons || []) {
-    const r = Array.isArray(p) ? p : [p.x, p.y, p.w, p.h];
-    ctx.strokeRect(...rect(r));
-  }
-
   for (const [zid, z] of Object.entries(zones || {})) {
-    const st = states?.[zid]?.state || "nosig";
-    const c = COLORS[st];
-    if (z.op) {
-      ctx.setLineDash([lw * 3, lw * 2]);
-      ctx.strokeStyle = "rgba(255,255,255,.85)";
-      ctx.lineWidth = Math.max(1, lw * 0.75);
-      ctx.strokeRect(...rect(z.op));
-      ctx.setLineDash([]);
-    }
     if (!z.eq) continue;
+    const s = states?.[zid];
+    const st = s?.state || "nosig";
     const [x, y, w, h] = rect(z.eq);
-    if (st === "idle") {
-      ctx.fillStyle = opt.blink ? "rgba(210,32,26,.32)" : "rgba(210,32,26,.12)";
-      ctx.fillRect(x, y, w, h);
-    }
-    ctx.strokeStyle = c;
-    ctx.lineWidth = st === "idle" ? lw * 2.2 : lw;
+    // 판정 결과: 가동 = 초록 50%, 비가동 의심 = 빨강 50%
+    ctx.fillStyle = FILL[st];
+    ctx.fillRect(x, y, w, h);
+    ctx.strokeStyle = COLORS[st];
+    ctx.lineWidth = st === "idle" ? lw * 2 : lw;
     ctx.strokeRect(x, y, w, h);
     if (opt.highlight === zid) {
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = lw;
       ctx.strokeRect(x - lw * 3, y - lw * 3, w + lw * 6, h + lw * 6);
     }
+    // 지금 이 순간 움직임이 잡혔으면 박스 오른쪽 위에 흰 점
+    if (s?.m) {
+      const r = Math.max(4, lw * 2);
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(x + w - r * 2, y + r * 2, r, 0, Math.PI * 2); ctx.fill();
+    }
     let label = z.eqId || "?";
-    const since = states?.[zid]?.since;
-    if (st === "idle" && since) label += "  " + fmtDur((now() - since) / 1000);
-    else if (st !== "run") label += "  " + stateLabel(st);
+    if (s?.r != null && (st === "run" || st === "idle")) label += `  ${s.r}%`;
+    if (st === "idle" && s?.since) label += "  " + fmtDur((now() - s.since) / 1000);
+    else if (st === "off" || st === "nosig") label += "  " + stateLabel(st);
     const p = Math.round(fs / 3), tw = ctx.measureText(label).width;
     let ly = y - fs - p * 2;
     if (ly < 0) ly = y;
-    ctx.fillStyle = c;
+    ctx.fillStyle = COLORS[st];
     ctx.fillRect(x, ly, tw + p * 2, fs + p * 2);
     ctx.fillStyle = st === "nosig" ? "#2A1F00" : "#fff";
     ctx.fillText(label, x + p, ly + p);

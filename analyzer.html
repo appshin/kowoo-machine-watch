@@ -60,11 +60,13 @@
     <label class="field"><span data-i18n="assignPc"></span><input name="agent" required maxlength="24"></label>
     <label class="field"><span data-i18n="srcType"></span>
       <select name="type">
+        <option value="screen" data-i18n="srcScreen"></option>
+        <option value="webcam" data-i18n="srcWebcam"></option>
         <option value="mp4" data-i18n="srcMp4"></option>
         <option value="jpeg" data-i18n="srcJpeg"></option>
-        <option value="webcam" data-i18n="srcWebcam"></option>
       </select>
     </label>
+    <p class="src-screen hint" data-i18n="screenHint"></p>
     <div class="src-go2rtc">
       <label class="field"><span data-i18n="streamName"></span><input name="stream" placeholder="f1_cam1" maxlength="60"></label>
       <label class="field" style="margin-top:12px"><span data-i18n="baseUrl"></span><input name="base" placeholder="http://localhost:1984"></label>
@@ -92,14 +94,12 @@
       <ul id="zoneList" class="zone-list"></ul>
       <button type="button" id="zoneNew" class="btn small" data-i18n="addZone"></button>
       <form id="zoneForm" class="zone-form">
-        <label class="field"><span data-i18n="eqId"></span><input name="eqId" maxlength="20" placeholder="CNC-12"></label>
+        <label class="field"><span data-i18n="eqId"></span><input name="eqId" maxlength="20" placeholder="CNC-B2"></label>
         <label class="field"><span data-i18n="eqName"></span><input name="name" maxlength="40"></label>
         <label class="field"><span data-i18n="camArea"></span><select name="area" class="area-select"></select></label>
-        <label class="field"><span data-i18n="idleSec"></span><input name="idleSec" type="number" min="10" max="3600" step="5"></label>
-        <div class="draw-toggle">
-          <button type="button" data-draw="eq" data-i18n="drawEq"></button>
-          <button type="button" data-draw="op" data-i18n="drawOp"></button>
-        </div>
+        <label class="field"><span data-i18n="windowMin"></span><input name="windowMin" type="number" min="1" max="60" step="1"></label>
+        <label class="field"><span data-i18n="minRatio"></span><input name="minRatio" type="number" min="1" max="95" step="1"></label>
+        <label class="field"><span><span data-i18n="sens"></span> <b id="sensVal"></b></span><input name="sens" type="range" min="1" max="10" step="1"></label>
         <p id="zoneState" class="hint"></p>
         <div class="row">
           <button type="submit" class="btn primary" data-i18n="saveZone"></button>
@@ -115,13 +115,9 @@
 <dialog id="setDlg">
   <form id="setForm" class="dlg-form">
     <h3 data-i18n="settings"></h3>
-    <label class="field"><span data-i18n="model"></span>
-      <select name="model"><option value="lite0" data-i18n="modelFast"></option><option value="lite2" data-i18n="modelAccurate"></option></select>
-    </label>
     <label class="field"><span data-i18n="analyzeMs"></span><input name="analyzeMs" type="number" min="300" max="10000" step="100"></label>
-    <label class="field"><span data-i18n="minScore"></span><input name="minScore" type="number" min="0.1" max="0.9" step="0.05"></label>
-    <label class="check"><input name="crop" type="checkbox"><span data-i18n="cropMode"></span></label>
-    <label class="field"><span data-i18n="overlap"></span><input name="overlap" type="number" min="0.05" max="0.9" step="0.05"></label>
+    <label class="field"><span data-i18n="pixThresh"></span><input name="pixThresh" type="number" min="5" max="80" step="1"></label>
+    <label class="field"><span data-i18n="skipPct"></span><input name="skipPct" type="number" min="10" max="100" step="5"></label>
     <label class="field"><span data-i18n="frameMs"></span><input name="frameMs" type="number" min="1000" max="10000" step="500"></label>
     <label class="field"><span data-i18n="frameW"></span><input name="frameW" type="number" min="480" max="1280" step="80"></label>
     <div class="row">
