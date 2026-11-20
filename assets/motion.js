@@ -44,3 +44,28 @@ export function judge(zs, t, motion, z) {
   if (base === "idle") return zs.ratio >= thr + 0.05 ? "run" : "idle";
   return zs.ratio < thr ? "idle" : "run";
 }
+
+// 다각형 안쪽만 계산하기 위한 마스크 (sample 격자 w×h, bbox 기준)
+export function pointInPoly(x, y, poly) {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const [xi, yi] = poly[i], [xj, yj] = poly[j];
+    if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+export function polyMask(poly, bbox, w, h) {
+  const m = new Uint8Array(w * h);
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    m[j * w + i] = pointInPoly(bbox[0] + (i + 0.5) / w * bbox[2], bbox[1] + (j + 0.5) / h * bbox[3], poly) ? 1 : 0;
+  }
+  return m;
+}
+// 마스크 안쪽 화소만 비교
+export function diffFractionMasked(a, b, th, mask) {
+  if (!mask) return diffFraction(a, b, th);
+  if (!a || !b || a.length !== b.length || a.length !== mask.length) return null;
+  let c = 0, n = 0;
+  for (let i = 0; i < a.length; i++) if (mask[i]) { n++; if (Math.abs(a[i] - b[i]) > th) c++; }
+  return n ? c / n : null;
+}

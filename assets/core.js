@@ -136,7 +136,12 @@ const DICT = {
     editZonesRemote: "감시 박스 편집", rzHelp: "코우타이 분석 PC가 보내 주는 최신 화면 위에 그립니다. 저장하면 분석 PC가 바로 새 박스로 분석합니다.", rzWait: "화면을 기다리는 중입니다. 분석 PC가 켜져 있고 CCTV 화면이 선택되어 있어야 합니다.",
     openAnalyzer: "분석 화면",
     dupTab: "이 PC에서 분석 화면이 이미 다른 탭에 열려 분석 중입니다. 그 탭을 쓰고 이 탭은 닫으세요.",
-    srcScreen: "CCTV 프로그램 화면 (권장)", screenHint: "저장 후 카메라 칸의 [CCTV 화면 선택]을 눌러 CCTV 프로그램 창을 고르세요. CCTV 창은 최소화하지 말고 분할 화면을 고정해 두세요.",
+    cropLabel: "화면 영역", cropAll: "전체 화면", cropSet: "일부 지정됨", cropPick: "영역 지정", cropReset: "전체로",
+    cropHelp: "분할 화면 중 이 카메라로 쓸 칸을 드래그해 고르고 저장하세요. 고른 칸만 크게 잘라 분석합니다.", cropNeedScreen: "먼저 CCTV 화면을 선택하세요.", cropNeedSource: "먼저 영상이나 파일을 연결하세요.", cropNeedRect: "영역을 드래그해 고르세요.",
+    splitTool: "분할 화면 나누기", splitHelp: "CCTV 프로그램의 영상 칸 전체(바깥 테두리)를 드래그하고 몇 줄·몇 칸인지 고르면, 칸마다 카메라가 하나씩 만들어집니다. 필요 없는 칸(실외, 채널 없음)은 나중에 지우세요. CCTV 프로그램의 분할 배치와 창 크기는 바꾸지 마세요.",
+    splitRows: "줄 수", splitCols: "칸 수", splitPrefix: "카메라 이름 앞부분", splitStart: "시작 번호", splitCreate: "카메라 {n}개 만들기", splitDone: "카메라 {n}개를 만들었습니다.",
+    modeRect: "사각형으로 그리기", modePoly: "점 찍어 그리기", shapeHint: "사각형을 그린 뒤 모서리 점을 끌어 모양을 맞추세요. 점 찍기는 첫 점을 다시 누르거나 더블클릭하면 닫힙니다. 선 위 더블클릭: 점 추가, 점 더블클릭: 점 삭제. 통로는 구역 밖에 두세요.",
+    srcScreen: "CCTV 프로그램 화면 (권장)", screenHint: "CCTV 화면 선택은 PC에서 한 번만 하면 모든 카메라가 함께 씁니다. 분할 화면이면 아래 [영역 지정]으로 이 카메라가 쓸 칸을 고르세요. 저장 후 카메라 칸의 [CCTV 화면 선택]을 눌러 CCTV 프로그램 창을 고르세요. CCTV 창은 최소화하지 말고 분할 화면을 고정해 두세요.",
     pickScreen: "CCTV 화면 선택", repickScreen: "화면 다시 선택", needPick: "CCTV 프로그램 창을 선택해야 분석할 수 있습니다.", needPickShort: "화면 선택 필요",
     skippedNow: "화면 전체 변화로 이번 회차 제외",
     windowMin: "판단 시간 (분)", minRatio: "가동 기준: 움직임 비율 (%)", sens: "민감도 (1~10)",
@@ -206,6 +211,11 @@ const DICT = {
     editZonesRemote: "Edit watch boxes", rzHelp: "You draw on the latest frame sent by the KOWOO Thai analysis PC. Once saved, the analysis PC uses the new boxes right away.", rzWait: "Waiting for a frame. The analysis PC must be on with the CCTV screen selected.",
     openAnalyzer: "Analysis PC page",
     dupTab: "This PC already has the analysis page running in another tab. Use that tab and close this one.",
+    cropLabel: "Screen area", cropAll: "Whole screen", cropSet: "Part selected", cropPick: "Select area", cropReset: "Whole screen",
+    cropHelp: "Drag the tile of the split screen to use for this camera, then save. Only that tile is enlarged and analyzed.", cropNeedScreen: "Choose the CCTV screen first.", cropNeedSource: "Connect a video or file first.", cropNeedRect: "Drag to select an area.",
+    splitTool: "Split CCTV grid", splitHelp: "Drag around the whole video grid of the CCTV program and set rows and columns; one camera is created per tile. Delete tiles you don't need later. Do not change the CCTV program layout or window size.",
+    splitRows: "Rows", splitCols: "Columns", splitPrefix: "Camera name prefix", splitStart: "Start number", splitCreate: "Create {n} cameras", splitDone: "Created {n} cameras.",
+    modeRect: "Draw rectangle", modePoly: "Draw by points", shapeHint: "Draw a rectangle, then drag its corner points to fit. In point mode, click the first point again or double-click to close. Double-click a line to add a point, a point to remove it. Keep aisles outside the area.",
     srcScreen: "CCTV program screen (recommended)", screenHint: "After saving, press [Choose CCTV screen] on the camera tile and pick the CCTV program window. Do not minimize it, and keep the split layout fixed.",
     pickScreen: "Choose CCTV screen", repickScreen: "Choose again", needPick: "Choose the CCTV program window to start analysis.", needPickShort: "Choose a screen",
     skippedNow: "whole screen changed, sample skipped",
@@ -276,6 +286,11 @@ const DICT = {
     editZonesRemote: "แก้ไขกรอบตรวจ", rzHelp: "วาดบนภาพล่าสุดที่ PC วิเคราะห์ของ KOWOO Thai ส่งมา เมื่อบันทึกแล้ว PC วิเคราะห์จะใช้กรอบใหม่ทันที", rzWait: "กำลังรอภาพ PC วิเคราะห์ต้องเปิดอยู่และเลือกหน้าจอ CCTV แล้ว",
     openAnalyzer: "หน้าวิเคราะห์",
     dupTab: "เครื่องนี้เปิดหน้าวิเคราะห์อยู่แล้วในแท็บอื่น กรุณาใช้แท็บนั้นและปิดแท็บนี้",
+    cropLabel: "พื้นที่หน้าจอ", cropAll: "ทั้งจอ", cropSet: "เลือกบางส่วนแล้ว", cropPick: "เลือกพื้นที่", cropReset: "ใช้ทั้งจอ",
+    cropHelp: "ลากเลือกช่องของจอแบ่งที่ต้องการใช้กับกล้องนี้แล้วบันทึก ระบบจะขยายและวิเคราะห์เฉพาะช่องนั้น", cropNeedScreen: "กรุณาเลือกหน้าจอ CCTV ก่อน", cropNeedSource: "กรุณาเชื่อมต่อวิดีโอหรือไฟล์ก่อน", cropNeedRect: "กรุณาลากเลือกพื้นที่",
+    splitTool: "แบ่งจอ CCTV", splitHelp: "ลากรอบพื้นที่วิดีโอทั้งหมดของโปรแกรม CCTV แล้วกำหนดจำนวนแถวและคอลัมน์ ระบบจะสร้างกล้องหนึ่งตัวต่อหนึ่งช่อง ช่องที่ไม่ใช้ลบภายหลังได้ อย่าเปลี่ยนรูปแบบการแบ่งจอหรือขนาดหน้าต่าง",
+    splitRows: "จำนวนแถว", splitCols: "จำนวนคอลัมน์", splitPrefix: "ชื่อกล้องขึ้นต้น", splitStart: "หมายเลขเริ่มต้น", splitCreate: "สร้างกล้อง {n} ตัว", splitDone: "สร้างกล้อง {n} ตัวแล้ว",
+    modeRect: "วาดสี่เหลี่ยม", modePoly: "วาดด้วยจุด", shapeHint: "วาดสี่เหลี่ยมแล้วลากจุดมุมให้พอดี โหมดจุด: คลิกจุดแรกอีกครั้งหรือดับเบิลคลิกเพื่อปิด ดับเบิลคลิกบนเส้นเพื่อเพิ่มจุด ดับเบิลคลิกที่จุดเพื่อลบ ให้ทางเดินอยู่นอกพื้นที่",
     srcScreen: "หน้าจอโปรแกรม CCTV (แนะนำ)", screenHint: "บันทึกแล้วกด [เลือกหน้าจอ CCTV] ที่ช่องกล้อง แล้วเลือกหน้าต่างโปรแกรม CCTV อย่าย่อหน้าต่าง และอย่าเปลี่ยนรูปแบบการแบ่งจอ",
     pickScreen: "เลือกหน้าจอ CCTV", repickScreen: "เลือกใหม่", needPick: "ต้องเลือกหน้าต่างโปรแกรม CCTV ก่อนจึงจะวิเคราะห์ได้", needPickShort: "ต้องเลือกหน้าจอ",
     skippedNow: "ทั้งจอเปลี่ยน ข้ามรอบนี้",
@@ -418,12 +433,16 @@ export function drawOverlay(ctx, W, H, zones, states, persons, opt = {}) {
     const s = states?.[zid];
     const st = s?.state || "nosig";
     const [x, y, w, h] = rect(z.eq);
-    // 판정 결과: 가동 = 초록 50%, 비가동 의심 = 빨강 50%
+    // 판정 결과: 가동 = 초록 50%, 비가동 의심 = 빨강 50% (구역 모양 그대로)
+    const poly = Array.isArray(z.poly) && z.poly.length >= 3 ? z.poly : null;
+    ctx.beginPath();
+    if (poly) { poly.forEach((q, i) => i ? ctx.lineTo(q[0] * W, q[1] * H) : ctx.moveTo(q[0] * W, q[1] * H)); ctx.closePath(); }
+    else ctx.rect(x, y, w, h);
     ctx.fillStyle = FILL[st];
-    ctx.fillRect(x, y, w, h);
+    ctx.fill();
     ctx.strokeStyle = COLORS[st];
     ctx.lineWidth = st === "idle" ? lw * 2 : lw;
-    ctx.strokeRect(x, y, w, h);
+    ctx.stroke();
     if (opt.highlight === zid) {
       ctx.strokeStyle = "#fff";
       ctx.lineWidth = lw;

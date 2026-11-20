@@ -53,6 +53,7 @@
     </label>
     <span id="engineStatus" class="meta"></span>
     <span class="spacer"></span>
+    <button id="splitBtn" type="button" class="btn admin-only" data-i18n="splitTool"></button>
     <button id="addCamBtn" type="button" class="btn admin-only" data-i18n="addCamera"></button>
     <button id="settingsBtn" type="button" class="btn admin-only" data-i18n="settings"></button>
     <button id="alertBtn" type="button" class="btn admin-only" data-i18n="alertSettings"></button>
@@ -93,6 +94,11 @@
       <label class="field"><span data-i18n="webcamDevice"></span><select name="deviceId"></select></label>
       <button type="button" id="loadCams" class="btn small" style="margin-top:8px" data-i18n="loadWebcams"></button>
     </div>
+    <div id="cropRow" class="row">
+      <span class="meta"><span data-i18n="cropLabel"></span>: <b id="cropState"></b></span>
+      <button type="button" id="cropPick" class="btn small" data-i18n="cropPick"></button>
+      <button type="button" id="cropReset" class="btn small" data-i18n="cropReset"></button>
+    </div>
     <div class="row">
       <button type="submit" class="btn primary" data-i18n="save"></button>
       <button type="button" class="btn" data-close data-i18n="cancel"></button>
@@ -109,6 +115,11 @@
     <div class="zone-side">
       <h3 id="zoneCamName"></h3>
       <p class="hint" data-i18n="zoneHelp"></p>
+      <div id="zoneMode" class="draw-toggle">
+        <button type="button" data-mode="rect" data-i18n="modeRect"></button>
+        <button type="button" data-mode="poly" data-i18n="modePoly"></button>
+      </div>
+      <p class="hint" data-i18n="shapeHint"></p>
       <ul id="zoneList" class="zone-list"></ul>
       <button type="button" id="zoneNew" class="btn small" data-i18n="addZone"></button>
       <form id="zoneForm" class="zone-form">
@@ -169,6 +180,32 @@
       <button type="button" class="btn" data-close data-i18n="cancel"></button>
     </div>
   </form>
+</dialog>
+
+<!-- 화면 영역 지정 / 분할 화면 나누기 -->
+<dialog id="cropDlg" class="zone-dlg">
+  <div class="zone-wrap">
+    <div class="zone-canvas-wrap"><canvas id="cropCanvas"></canvas></div>
+    <div class="zone-side">
+      <h3 id="cropTitle"></h3>
+      <p id="cropHelp" class="hint"></p>
+      <form id="splitForm" class="zone-form" onsubmit="return false">
+        <div id="splitFields">
+          <div class="row">
+            <label class="field"><span data-i18n="splitRows"></span><input name="rows" type="number" min="1" max="8" value="4" size="3"></label>
+            <label class="field"><span data-i18n="splitCols"></span><input name="cols" type="number" min="1" max="8" value="4" size="3"></label>
+          </div>
+          <label class="field"><span data-i18n="splitPrefix"></span><input name="prefix" value="CH" maxlength="20"></label>
+          <label class="field"><span data-i18n="splitStart"></span><input name="start" type="number" min="1" value="1"></label>
+          <label class="field"><span data-i18n="camArea"></span><select name="area"></select></label>
+        </div>
+      </form>
+      <div class="row">
+        <button type="button" id="cropOk" class="btn primary"></button>
+        <button type="button" id="cropCancel" class="btn" data-i18n="cancel"></button>
+      </div>
+    </div>
+  </div>
 </dialog>
 
 <script type="module" src="assets/analyzer.js"></script>

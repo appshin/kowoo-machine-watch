@@ -3,7 +3,8 @@ import {
   serverTimestamp, increment, now, SITE, t, applyI18n, bindLangSelects, shiftOf, drawOverlay,
   areaLabel, esc, natCmp, $, COLORS, ALERT, tl, tzParts, fmtClock
 } from "./core.js";
-import { toGray, diffFraction, sensPct, newZoneState, judge } from "./motion.js";
+import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge } from "./motion.js";
+import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js";
 
 const DEFAULTS = { analyzeMs: 1000, pixThresh: 22, skipPct: 40, frameMs: 2000, frameW: 960 };
 const CROP_MS = 5000, ALERT_CHECK_MS = 30000;
@@ -13,6 +14,51 @@ const THUMB_MS = 60000, LIVE_HEARTBEAT_MS = 5000, STATS_FLUSH_MS = 15000;
 const vidHost = document.createElement("div");
 vidHost.style.cssText = "position:fixed;left:0;bottom:0;width:1px;height:1px;overflow:hidden;opacity:.01;pointer-events:none";
 document.body.appendChild(vidHost);
+
+// CCTV 프로그램 창 캡처는 PC당 하나를 모든 "CCTV 프로그램 화면" 카메라가 함께 씀
+const SCR = { stream: null, video: null, picking: null, autoTried: false };
+function stopScreen() {
+  if (SCR.stream) SCR.stream.getTracks().forEach(tr => tr.stop());
+  if (SCR.video) { SCR.video.srcObject = null; SCR.video.remove(); }
+  SCR.stream = null; SCR.video = null;
+}
+function pickScreen(fromClick) {
+  if (SCR.picking) return SCR.picking;
+  if (!fromClick && SCR.autoTried) return Promise.resolve();
+  SCR.autoTried = true;
+  SCR.picking = (async () => {
+    try {
+      const st = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: 5 }, audio: false, selfBrowserSurface: "exclude", surfaceSwitching: "include"
+      });
+      stopScreen();
+      const v = document.createElement("video");
+      v.muted = true; v.playsInline = true; v.autoplay = true;
+      vidHost.appendChild(v);
+      v.srcObject = st;
+      SCR.stream = st; SCR.video = v;
+      st.getVideoTracks()[0].addEventListener("ended", () => { if (SCR.stream === st) { stopScreen(); refreshScreenTiles(); } });
+      await v.play().catch(() => {});
+    } catch (e) { console.warn("screen", e); }
+    finally { SCR.picking = null; refreshScreenTiles(); }
+  })();
+  return SCR.picking;
+}
+function refreshScreenTiles() {
+  for (const r of S.runners.values()) {
+    if (r.type() !== "screen") continue;
+    r.needPick = !SCR.stream;
+    for (const zs of Object.values(r.zs)) zs.prev = null;
+    r.prevFull = null;
+    r.render(S.running);
+  }
+}
+// 잘라낼 영역 (0~1). 없거나 잘못되면 전체
+function cropOf(src) {
+  const c = src?.crop;
+  if (!Array.isArray(c) || c.length !== 4 || !(c[2] > 0.01) || !(c[3] > 0.01)) return [0, 0, 1, 1];
+  return c.map(v => Math.min(1, Math.max(0, +v)));
+}
 
 const LS = {
   get(k, d) { try { const v = localStorage.getItem("kcw." + k); return v === null ? d : JSON.parse(v); } catch { return d; } },
@@ -70,7 +116,9 @@ function sampleGray(src, box, maxSide = 64) {
   const w = Math.max(4, Math.round(rw * sc)), h = Math.max(4, Math.round(rh * sc));
   if (mcv.width !== w || mcv.height !== h) { mcv.width = w; mcv.height = h; }
   mctx.drawImage(src, rx, ry, rw, rh, 0, 0, w, h);   // 축소하면서 잡음이 평균되어 줄어듦
-  return toGray(mctx.getImageData(0, 0, w, h).data);
+  const g = toGray(mctx.getImageData(0, 0, w, h).data);
+  g.w = w; g.h = h;
+  return g;
 }
 
 /* =========================================================
@@ -100,6 +148,12 @@ class Runner {
     for (const zs of Object.values(this.zs)) zs.prev = null;
     if (type === "jpeg") return;
     if (type === "image") { await this.loadSavedImage(); this.render(S.running); return; }
+    if (type === "screen") {
+      if (fromClick || !SCR.stream) await pickScreen(fromClick);
+      this.needPick = !SCR.stream;
+      this.render(S.running);
+      return;
+    }
     const pageMode = type === "url" && (this.urlMode === "page" || this.urlFailed);
     if (type === "url" && !(fromClick && pageMode)) { await this.openUrl(); this.render(S.running); return; }
     const v = document.createElement("video");
@@ -107,7 +161,7 @@ class Runner {
     vidHost.appendChild(v);
     this.video = v;
     try {
-      if (type === "screen" || type === "url") {
+      if (type === "url") {
         this.stream = await navigator.mediaDevices.getDisplayMedia({
           video: { frameRate: 5 }, audio: false, selfBrowserSurface: "exclude", surfaceSwitching: "include"
         });
@@ -128,7 +182,7 @@ class Runner {
       await v.play().catch(() => {});
     } catch (e) {
       console.warn("open", this.cam.name, e);
-      if (type === "screen" || type === "url") this.needPick = true;
+      if (type === "url") this.needPick = true;
     }
     this.render(S.running);
   }
@@ -252,6 +306,12 @@ class Runner {
       const r = await fetch(`${this.base()}/api/frame.jpeg?src=${encodeURIComponent(this.cam.src.stream || "")}&t=${Date.now()}`, { cache: "no-store" });
       if (!r.ok) throw new Error("http " + r.status);
       el = await createImageBitmap(await r.blob()); w = el.width; h = el.height;
+    } else if (type === "screen") {
+      const v = SCR.video;
+      if (!v) { this.needPick = true; throw new Error("no screen"); }
+      this.needPick = false;
+      if (v.readyState < 2) throw new Error("screen not ready");
+      el = v; w = v.videoWidth; h = v.videoHeight;
     } else {
       const v = this.video;
       if (!v || this.needPick) throw new Error("no video");
@@ -271,13 +331,16 @@ class Runner {
       el = v; w = v.videoWidth; h = v.videoHeight;
     }
     if (!w || !h) throw new Error("empty frame");
-    const sc = Math.min(1, 1280 / w), W = Math.round(w * sc), H = Math.round(h * sc);
+    // 분할 화면의 한 칸만 잘라 크게 (작은 칸은 960px 폭까지 키움)
+    const cr = cropOf(this.cam.src);
+    const sx = cr[0] * w, sy = cr[1] * h, sw = Math.max(1, cr[2] * w), sh = Math.max(1, cr[3] * h);
+    const sc = Math.min(1280 / sw, Math.max(1, 960 / sw)), W = Math.round(sw * sc), H = Math.round(sh * sc);
     if (this.canvas.width !== W || this.canvas.height !== H) {
       this.canvas.width = W; this.canvas.height = H;
       this.prevFull = null;
       for (const zs of Object.values(this.zs)) zs.prev = null;
     }
-    this.ctx.drawImage(el, 0, 0, W, H);
+    this.ctx.drawImage(el, sx, sy, sw, sh, 0, 0, W, H);
     if (el.close && type === "jpeg") el.close();
     // 다른 사이트 영상을 읽을 수 없으면(보안 차단) 화면 캡처 방식으로 전환
     if (type === "url" && !this.stream) {
@@ -316,7 +379,14 @@ class Runner {
       else if (!this.online) { ns = "nosig"; zs.hist = []; zs.prev = null; zs.ratio = null; }
       else if (grabbed) {
         const g = sampleGray(this.canvas, z.eq);
-        const d = diffFraction(g, zs.prev, th);
+        // 다각형 구역이면 모양 안쪽 화소만 계산 (통로 등 바깥은 무시)
+        let mask = null;
+        if (g && Array.isArray(z.poly) && z.poly.length >= 3) {
+          const key = JSON.stringify(z.poly) + g.w + "x" + g.h;
+          if (zs.maskKey !== key) { zs.maskKey = key; zs.mask = polyMask(z.poly, z.eq, g.w, g.h); }
+          mask = zs.mask;
+        }
+        const d = diffFractionMasked(g, zs.prev, th, mask);
         zs.prev = g;
         if (d !== null && !this.skipped) {
           if (zs.state === "off" || zs.state === "nosig") zs.state = "run";
@@ -476,6 +546,19 @@ class Runner {
     drawOverlay(c, cv.width, cv.height, this.cam.zones, analyzing ? this.states : {}, []);
   }
 }
+
+// 영역 지정 도구에 쓸 원본(잘라내기 전) 화면
+function sourceOf(type, cid) {
+  if (type === "screen") return SCR.video && SCR.video.videoWidth ? SCR.video : null;
+  const r = cid && S.runners.get(cid);
+  if (!r) return null;
+  if (r.video && r.video.videoWidth) return r.video;
+  if (r.img && r.img.naturalWidth) return r.img;
+  if (r.urlImg && r.urlImg.naturalWidth) return r.urlImg;
+  return null;
+}
+const srcW = el => el.videoWidth || el.naturalWidth || el.width;
+const srcH = el => el.videoHeight || el.naturalHeight || el.height;
 
 function loadImg(url, cors = false) {
   return new Promise((res, rej) => {
@@ -671,9 +754,9 @@ function bindUi() {
     const type = f.type.value;
     const cam = {
       name: f.name.value.trim(), area: f.area.value, agent: cleanKey(f.agent.value),
-      src: type === "screen" || type === "image" ? { type }
+      src: type === "screen" || type === "image" ? { type, ...(f.dataset.crop ? { crop: JSON.parse(f.dataset.crop) } : {}) }
         : type === "url" ? { type, url: f.url.value.trim() }
-        : type === "webcam" ? { type, deviceId: f.deviceId.value || "" }
+        : type === "webcam" ? { type, deviceId: f.deviceId.value || "", ...(f.dataset.crop ? { crop: JSON.parse(f.dataset.crop) } : {}) }
         : { type, stream: f.stream.value.trim(), base: f.base.value.trim() },
       zones: old.zones || {}
     };
@@ -704,6 +787,7 @@ function bindUi() {
 
   bindZoneEditor();
   bindAlertUi();
+  bindCropTools();
 }
 
 function syncSrcFields() {
@@ -713,6 +797,7 @@ function syncSrcFields() {
   f.querySelector(".src-screen").hidden = ty !== "screen";
   f.querySelector(".src-image").hidden = ty !== "image";
   f.querySelector(".src-url").hidden = ty !== "url";
+  $("#cropRow").hidden = !["screen", "image", "webcam"].includes(ty);
   f.url.required = ty === "url";
   f.stream.required = ty === "mp4" || ty === "jpeg";
 }
@@ -741,6 +826,8 @@ function openCam(id) {
   $("#camDel").hidden = !id;
   syncSrcFields();
   if (f.type.value === "webcam") loadWebcams(c?.src?.deviceId || "");
+  f.dataset.crop = c?.src?.crop ? JSON.stringify(c.src.crop) : "";
+  syncCropLabel();
   $("#camDlg").showModal();
 }
 function openSettings() {
@@ -753,7 +840,7 @@ function openSettings() {
 /* =========================================================
    감시 구역 편집기
    ========================================================= */
-const Z = { cid: null, zid: null, draft: null, drag: null, timer: null };
+const Z = { cid: null, zid: null, draft: null, timer: null, ed: null };
 const zcv = () => $("#zoneCanvas");
 
 function openZones(cid) {
@@ -770,7 +857,8 @@ function openZones(cid) {
 }
 function newDraft() {
   Z.zid = null;
-  Z.draft = { eqId: "", name: "", area: S.cams[Z.cid]?.area || SITE.areas[0], windowMin: 5, minRatio: 30, sens: 5, eq: null };
+  Z.draft = { eqId: "", name: "", area: S.cams[Z.cid]?.area || SITE.areas[0], windowMin: 5, minRatio: 30, sens: 5 };
+  Z.ed.set(null);
   fillZoneForm();
 }
 function pickZone(zid) {
@@ -778,6 +866,7 @@ function pickZone(zid) {
   if (!z) return;
   Z.zid = zid;
   Z.draft = { windowMin: 5, minRatio: 30, sens: 5, ...JSON.parse(JSON.stringify(z)) };
+  Z.ed.set(zonePoly(z));
   fillZoneForm();
   renderZoneList();
 }
@@ -791,10 +880,11 @@ function fillZoneForm() {
   syncZoneState();
 }
 function syncZoneState() {
-  let msg = t("boxStatus", { a: Z.draft.eq ? t("done") : t("missing") });
+  let msg = t("boxStatus", { a: Z.ed.poly ? t("done") : t("missing") });
   const s = Z.zid && S.runners.get(Z.cid)?.states?.[Z.zid];
   if (s && s.r != null) msg += "  /  " + t("liveRatio", { r: s.r, m: Z.draft.windowMin });
   $("#zoneState").textContent = msg;
+  document.querySelectorAll("#zoneMode button").forEach(b => b.classList.toggle("on", b.dataset.mode === Z.ed.mode));
 }
 function renderZoneList() {
   const zones = S.cams[Z.cid]?.zones || {};
@@ -807,38 +897,14 @@ function drawZone() {
   if (cv.width !== r.canvas.width || cv.height !== r.canvas.height) { cv.width = r.canvas.width; cv.height = r.canvas.height; }
   const c = cv.getContext("2d"), W = cv.width, H = cv.height;
   c.drawImage(r.canvas, 0, 0);
-  const lw = Math.max(2, Math.round(W / 420));
-  const box = (b, color, label, fill) => {
-    if (!b) return;
-    if (fill) { c.fillStyle = fill; c.fillRect(b[0] * W, b[1] * H, b[2] * W, b[3] * H); }
-    c.strokeStyle = color; c.lineWidth = lw;
-    c.strokeRect(b[0] * W, b[1] * H, b[2] * W, b[3] * H);
-    if (label) {
-      c.font = `600 ${Math.max(12, Math.round(W / 60))}px system-ui`;
-      c.fillStyle = color; c.fillText(label, b[0] * W + 4, b[1] * H + Math.max(14, W / 50));
-    }
-  };
   for (const [zid, z] of Object.entries(S.cams[Z.cid]?.zones || {})) {
-    if (zid !== Z.zid) box(z.eq, "rgba(255,255,255,.7)", z.eqId);
+    if (zid !== Z.zid) strokePoly(c, W, H, zonePoly(z), "rgba(255,255,255,.75)", z.eqId);
   }
-  box(Z.draft.eq, COLORS.person, Z.draft.eqId || "", "rgba(31,165,196,.18)");
-  if (Z.drag?.cur) box(Z.drag.cur, COLORS.person);
+  Z.ed.draw(c, W, H, COLORS.person, Z.draft.eqId || "");
 }
 function bindZoneEditor() {
-  const cv = zcv();
-  const pt = e => {
-    const b = cv.getBoundingClientRect();
-    return [clamp01((e.clientX - b.left) / b.width), clamp01((e.clientY - b.top) / b.height)];
-  };
-  const rectOf = (a, b) => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])];
-  cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); Z.drag = { a: pt(e), cur: null }; });
-  cv.addEventListener("pointermove", e => { if (Z.drag) { Z.drag.cur = rectOf(Z.drag.a, pt(e)); drawZone(); } });
-  cv.addEventListener("pointerup", () => {
-    const r = Z.drag?.cur;
-    Z.drag = null;
-    if (r && r[2] > 0.005 && r[3] > 0.005) Z.draft.eq = r.map(v => Math.round(v * 10000) / 10000);
-    syncZoneState(); drawZone();
-  });
+  Z.ed = createShapeEditor(zcv(), () => { drawZone(); syncZoneState(); });
+  document.querySelectorAll("#zoneMode button").forEach(b => b.addEventListener("click", () => { Z.ed.setMode(b.dataset.mode); syncZoneState(); }));
   const f = $("#zoneForm");
   $("#zoneList").addEventListener("click", e => { const b = e.target.closest("[data-zid]"); if (b) pickZone(b.dataset.zid); });
   $("#zoneNew").addEventListener("click", () => { newDraft(); renderZoneList(); drawZone(); });
@@ -846,14 +912,17 @@ function bindZoneEditor() {
   f.sens.addEventListener("input", e => { $("#sensVal").textContent = e.target.value; });
   f.addEventListener("submit", async e => {
     e.preventDefault();
+    const poly = Z.ed.poly;
     const d = {
-      eqId: f.eqId.value.trim(), name: f.name.value.trim(), area: f.area.value, eq: Z.draft.eq,
+      eqId: f.eqId.value.trim(), name: f.name.value.trim(), area: f.area.value,
       windowMin: Math.min(60, Math.max(1, +f.windowMin.value || 5)),
       minRatio: Math.min(95, Math.max(1, +f.minRatio.value || 30)),
       sens: Math.min(10, Math.max(1, +f.sens.value || 5))
     };
     if (!d.eqId) { toast(t("zoneNeedId")); return; }
-    if (!d.eq) { toast(t("zoneNeedBox")); return; }
+    if (!poly) { toast(t("zoneNeedBox")); return; }
+    d.poly = poly;
+    d.eq = polyBBox(poly).map(v => Math.round(v * 10000) / 10000);   // 바깥 사각형 (확대 화면·표시용)
     const zid = Z.zid || "z" + Date.now().toString(36);
     try {
       await set(R(`config/cameras/${Z.cid}/zones/${zid}`), d);
@@ -978,5 +1047,109 @@ function bindAlertUi() {
     if (!c.url) { toast(t("alNeedUrl")); return; }
     try { await sendLine(c, `[KOWOO THAI] ${head(langsOf(c), "alTestText")}\n${c.roomUrl}`, true); toast(t("alTestSent")); }
     catch (err) { console.warn(err); toast(t("saveFail")); }
+  });
+}
+
+/* =========================================================
+   화면 영역 지정 (분할 화면에서 한 칸만 쓰기) + 분할 화면 자동 나누기
+   ========================================================= */
+const CR = { mode: null, rect: null, drag: null, timer: null, srcType: "screen", cid: null };
+
+function syncCropLabel() {
+  const f = $("#camForm");
+  $("#cropState").textContent = f.dataset.crop ? t("cropSet") : t("cropAll");
+}
+function openCropDlg(mode) {
+  const f = $("#camForm");
+  CR.mode = mode;
+  CR.srcType = mode === "split" ? "screen" : f.type.value;
+  CR.cid = mode === "split" ? null : f.dataset.id || null;
+  const src = sourceOf(CR.srcType, CR.cid);
+  if (!src) { toast(t(CR.srcType === "screen" ? "cropNeedScreen" : "cropNeedSource")); if (CR.srcType === "screen") pickScreen(true); return; }
+  CR.rect = mode === "crop" && f.dataset.crop ? JSON.parse(f.dataset.crop) : null;
+  $("#cropTitle").textContent = t(mode === "split" ? "splitTool" : "cropLabel");
+  $("#cropHelp").textContent = t(mode === "split" ? "splitHelp" : "cropHelp");
+  $("#splitFields").hidden = mode !== "split";
+  $("#cropOk").textContent = mode === "split" ? t("splitCreate", { n: splitN() }) : t("save");
+  if (mode === "split") {
+    const sf = $("#splitForm");
+    sf.area.innerHTML = SITE.areas.map(a => `<option value="${a}">${esc(areaLabel(a))}</option>`).join("");
+  }
+  $("#cropDlg").showModal();
+  clearInterval(CR.timer);
+  CR.timer = setInterval(drawCrop, 400);
+  drawCrop();
+}
+function splitN() {
+  const sf = $("#splitForm");
+  return Math.max(1, +sf.rows.value || 1) * Math.max(1, +sf.cols.value || 1);
+}
+function drawCrop() {
+  const src = sourceOf(CR.srcType, CR.cid), cv = $("#cropCanvas");
+  if (!src) return;
+  const sw = srcW(src), sh = srcH(src), sc = Math.min(1, 1600 / sw);
+  const W = Math.round(sw * sc), H = Math.round(sh * sc);
+  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
+  const c = cv.getContext("2d");
+  c.drawImage(src, 0, 0, W, H);
+  const r = CR.drag?.cur || CR.rect;
+  if (!r) return;
+  const [x, y, w, h] = [r[0] * W, r[1] * H, r[2] * W, r[3] * H];
+  c.fillStyle = "rgba(0,0,0,.45)";
+  c.fillRect(0, 0, W, y); c.fillRect(0, y + h, W, H - y - h); c.fillRect(0, y, x, h); c.fillRect(x + w, y, W - x - w, h);
+  c.strokeStyle = COLORS.person; c.lineWidth = 3; c.strokeRect(x, y, w, h);
+  if (CR.mode === "split") {
+    const sf = $("#splitForm"), rows = Math.max(1, +sf.rows.value || 1), cols = Math.max(1, +sf.cols.value || 1);
+    c.lineWidth = 2; c.font = `600 ${Math.max(14, Math.round(W / 60))}px system-ui`; c.fillStyle = "#fff";
+    for (let i = 1; i < cols; i++) { c.beginPath(); c.moveTo(x + w * i / cols, y); c.lineTo(x + w * i / cols, y + h); c.stroke(); }
+    for (let j = 1; j < rows; j++) { c.beginPath(); c.moveTo(x, y + h * j / rows); c.lineTo(x + w, y + h * j / rows); c.stroke(); }
+    let n = Math.max(1, +sf.start.value || 1);
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) c.fillText(`${sf.prefix.value}${n++}`, x + w * i / cols + 8, y + h * j / rows + Math.max(20, W / 45));
+  }
+}
+function bindCropTools() {
+  const cv = $("#cropCanvas");
+  const pt = e => { const b = cv.getBoundingClientRect(); return [clamp01((e.clientX - b.left) / b.width), clamp01((e.clientY - b.top) / b.height)]; };
+  const rectOf = (a, b) => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.abs(a[0] - b[0]), Math.abs(a[1] - b[1])];
+  cv.addEventListener("pointerdown", e => { cv.setPointerCapture(e.pointerId); CR.drag = { a: pt(e), cur: null }; });
+  cv.addEventListener("pointermove", e => { if (CR.drag) { CR.drag.cur = rectOf(CR.drag.a, pt(e)); drawCrop(); } });
+  cv.addEventListener("pointerup", () => {
+    const r = CR.drag?.cur; CR.drag = null;
+    if (r && r[2] > 0.02 && r[3] > 0.02) CR.rect = r.map(v => Math.round(v * 10000) / 10000);
+    drawCrop();
+  });
+  $("#cropPick").addEventListener("click", () => openCropDlg("crop"));
+  $("#cropReset").addEventListener("click", () => { $("#camForm").dataset.crop = ""; syncCropLabel(); });
+  $("#splitBtn").addEventListener("click", () => openCropDlg("split"));
+  $("#splitForm").addEventListener("input", () => { $("#cropOk").textContent = t("splitCreate", { n: splitN() }); drawCrop(); });
+  $("#cropCancel").addEventListener("click", () => $("#cropDlg").close());
+  $("#cropDlg").addEventListener("close", () => { clearInterval(CR.timer); CR.timer = null; });
+  $("#cropOk").addEventListener("click", async () => {
+    if (!CR.rect) { toast(t("cropNeedRect")); return; }
+    if (CR.mode === "crop") {
+      $("#camForm").dataset.crop = JSON.stringify(CR.rect);
+      syncCropLabel();
+      $("#cropDlg").close();
+      return;
+    }
+    // 분할 화면 자동 나누기: 칸마다 카메라 하나
+    const sf = $("#splitForm");
+    const rows = Math.min(8, Math.max(1, +sf.rows.value || 1)), cols = Math.min(8, Math.max(1, +sf.cols.value || 1));
+    const [x, y, w, h] = CR.rect, prefix = sf.prefix.value.trim() || "CH", area = sf.area.value;
+    let n = Math.max(1, +sf.start.value || 1);
+    const upd = {}, base = Date.now().toString(36);
+    for (let j = 0; j < rows; j++) for (let i = 0; i < cols; i++) {
+      const r4 = v => Math.round(v * 10000) / 10000;
+      upd[`c${base}${String(n).padStart(2, "0")}`] = {
+        name: `${prefix}${n}`, area, agent: S.agent,
+        src: { type: "screen", crop: [r4(x + w * i / cols), r4(y + h * j / rows), r4(w / cols), r4(h / rows)] }, zones: {}
+      };
+      n++;
+    }
+    try {
+      await update(R("config/cameras"), upd);
+      $("#cropDlg").close();
+      toast(t("splitDone", { n: rows * cols }));
+    } catch (err) { console.warn(err); toast(t("saveFail")); }
   });
 }

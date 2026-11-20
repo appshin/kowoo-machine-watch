@@ -236,3 +236,7 @@ body.room .seg { cursor: default; }
 
 .warn-text { color: #9A6B00; }
 #rzCanvas { width: 100%; height: auto; display: block; cursor: crosshair; touch-action: none; }
+#cropCanvas { width: 100%; height: auto; display: block; cursor: crosshair; touch-action: none; }
+.zone-canvas-wrap { min-width: 0; }
+.draw-toggle button.on { border-color: var(--person); background: #E6F6FA; }
+#rzCanvas, #zoneCanvas { cursor: crosshair; }
