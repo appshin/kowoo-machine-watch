@@ -4,11 +4,11 @@ import {
   getDatabase, ref, onValue, get, set, update, push, remove, onDisconnect,
   serverTimestamp, increment, query, orderByChild, limitToLast
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig, SITE } from "./firebase-config.js?v=20261120g";
+import { firebaseConfig, SITE } from "./firebase-config.js?v=20261120j";
 
 export { SITE, onValue, get, set, update, push, remove, onDisconnect, serverTimestamp, increment, query, orderByChild, limitToLast };
 
-export const VERSION = "20261120g";
+export const VERSION = "20261120j";
 window.__KCW_VERSION = VERSION;
 
 /* ---------- Firebase ---------- */
@@ -23,6 +23,21 @@ export { auth, db };
 export const R = (p = "") => ref(db, p ? `${SITE.root}/${p}` : SITE.root);
 // 알림 설정(중계 주소·키)은 cctv 밖에 두어 admin·agent만 읽게 함
 export const ALERT = () => ref(db, `${SITE.root}Alert`);
+
+/* ---------- 설비번호 자동 부여: 전체 카메라에서 겹치지 않는 EQ-001, EQ-002 ... ---------- */
+export function nextEqId(cams) {
+  let max = 0;
+  const used = new Set();
+  for (const cam of Object.values(cams || {})) for (const z of Object.values(cam.zones || {})) {
+    const id = String(z.eqId || "").trim().toUpperCase();
+    used.add(id);
+    const m = id.match(/^EQ-(\d+)$/);
+    if (m) max = Math.max(max, +m[1]);
+  }
+  let n = max + 1, id;
+  do { id = "EQ-" + String(n++).padStart(3, "0"); } while (used.has(id));
+  return id;
+}
 
 /* ---------- 설비 상태 목록 (대시보드·상황실 공용) ---------- */
 export const STALE_MS = 30000;
@@ -72,7 +87,7 @@ export const now = () => Date.now() + offset;
 export const $ = (s, el = document) => el.querySelector(s);
 export const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 export const natCmp = (a, b) => String(a ?? "").localeCompare(String(b ?? ""), undefined, { numeric: true });
-export const COLORS = { run: "#1E8449", idle: "#D2201A", off: "#8B949E", nosig: "#D99A00", person: "#1FA5C4" };
+export const COLORS = { run: "#1E8449", idle: "#D2201A", off: "#8B949E", nosig: "#D99A00", wait: "#4F6B8C", person: "#1FA5C4" };
 const FONT = '"IBM Plex Sans KR","IBM Plex Sans Thai",system-ui,sans-serif';
 
 /* ---------- i18n ---------- */
@@ -110,7 +125,7 @@ const DICT = {
     webcamDevice: "웹캠", loadWebcams: "웹캠 목록 불러오기",
     save: "저장", cancel: "취소", delete: "삭제", close: "닫기",
     confirmDelCam: "이 카메라와 등록된 설비 영역을 모두 삭제할까요?",
-    zoneHelp: "설비번호를 입력하고 화면 위에 감시 박스를 드래그해 그린 뒤 저장하세요. 작업자가 서서 일하는 자리나 소재 투입부처럼 가동 중이면 움직임이 생기는 곳을 그리고, 경광등·시계 글자·통로는 빼세요.",
+    zoneHelp: "설비번호는 EQ-001처럼 자동으로 들어갑니다(나중에 실제 번호로 고치면 됩니다). 화면 위에 감시 박스를 그리고 저장하면 바로 다음 설비로 넘어갑니다. 작업자가 서서 일하는 자리나 소재 투입부처럼 가동 중이면 움직임이 생기는 곳을 그리고, 경광등·시계 글자·통로는 빼세요.",
     addZone: "새 설비", eqId: "설비번호", eqName: "설비명", idleSec: "작업자 부재 판정 시간(초)",
     drawEq: "설비 박스 그리기", drawOp: "작업자 위치 그리기", saveZone: "설비 저장",
     zoneStatus: "설비 박스: {a} / 작업자 위치: {b}", done: "그림", missing: "없음",
@@ -147,6 +162,13 @@ const DICT = {
     versionMismatch: "업데이트가 일부만 반영됐습니다 (화면 파일 {h} / 기능 파일 {j}). GitHub의 assets 폴더 안으로 들어가 새 파일들을 다시 올린 뒤 Ctrl+F5를 누르세요.",
     eqStatus: "설비 상태", idleShort: "비가동 의심",
     nowState: "현재",
+    wait: "판정 중", dupEqId: "설비번호 {id}가 이미 다른 곳({where})에 있습니다. 목록에서 구분이 안 되니 다른 번호를 쓰는 것이 좋습니다. 그래도 저장할까요?",
+    savedNext: "{id} 저장했습니다. 다음 설비 {next}를 그리세요.",
+    blkTabTitle: "이 컴퓨터의 다른 탭에서 분석이 실행 중입니다", blkRemoteTitle: "{pc} 분석이 다른 컴퓨터에서 실행 중입니다",
+    blkKeep: "기존 감시는 그대로 계속되고 있습니다. 아무것도 다시 설정할 필요 없습니다.",
+    blkTabHelp: "분석은 처음 연 탭에서 계속 돌아가고 있으니 이 탭은 닫으세요. 상태는 대시보드와 종합상황실에서 보면 됩니다.",
+    blkRemoteHelp: "감시 상태는 대시보드·종합상황실에서 보고, 감시 박스 수정은 대시보드 카메라 패널의 [감시 박스 편집]에서 하면 됩니다.",
+    blkForce: "그래도 여기서 분석 실행", blkForceConfirm: "같은 카메라를 두 곳에서 분석하면 기록이 겹칩니다. 기존 분석 PC가 꺼졌거나 이 컴퓨터로 옮기는 경우에만 실행하세요. 계속할까요?",
     srcScreen: "CCTV 프로그램 화면 (권장)", screenHint: "CCTV 화면 선택은 PC에서 한 번만 하면 모든 카메라가 함께 씁니다. 분할 화면이면 아래 [영역 지정]으로 이 카메라가 쓸 칸을 고르세요. 저장 후 카메라 칸의 [CCTV 화면 선택]을 눌러 CCTV 프로그램 창을 고르세요. CCTV 창은 최소화하지 말고 분할 화면을 고정해 두세요.",
     pickScreen: "CCTV 화면 선택", repickScreen: "화면 다시 선택", needPick: "CCTV 프로그램 창을 선택해야 분석할 수 있습니다.", needPickShort: "화면 선택 필요",
     skippedNow: "화면 전체 변화로 이번 회차 제외",
@@ -225,6 +247,13 @@ const DICT = {
     versionMismatch: "The update is only partly applied (page {h} / scripts {j}). Upload the new files inside the assets folder on GitHub again, then press Ctrl+F5.",
     eqStatus: "Machine status", idleShort: "Suspected idle",
     nowState: "Now",
+    wait: "Checking", dupEqId: "Machine no. {id} already exists elsewhere ({where}). Lists cannot tell them apart, so a different number is better. Save anyway?",
+    savedNext: "Saved {id}. Draw the next machine, {next}.",
+    blkTabTitle: "Analysis is already running in another tab on this computer", blkRemoteTitle: "{pc} analysis is running on another computer",
+    blkKeep: "Monitoring continues as before. You do not need to set anything up again.",
+    blkTabHelp: "Analysis keeps running in the tab you opened first, so close this tab. Use the dashboard and situation room to watch status.",
+    blkRemoteHelp: "Watch status on the dashboard or situation room, and edit watch boxes with [Edit watch boxes] in the dashboard camera panel.",
+    blkForce: "Run analysis here anyway", blkForceConfirm: "Analyzing the same cameras in two places duplicates records. Only continue if the old analysis PC is off or you are moving it here. Continue?",
     srcScreen: "CCTV program screen (recommended)", screenHint: "After saving, press [Choose CCTV screen] on the camera tile and pick the CCTV program window. Do not minimize it, and keep the split layout fixed.",
     pickScreen: "Choose CCTV screen", repickScreen: "Choose again", needPick: "Choose the CCTV program window to start analysis.", needPickShort: "Choose a screen",
     skippedNow: "whole screen changed, sample skipped",
@@ -303,6 +332,13 @@ const DICT = {
     versionMismatch: "อัปเดตเพียงบางส่วน (หน้า {h} / สคริปต์ {j}) กรุณาอัปโหลดไฟล์ใหม่ในโฟลเดอร์ assets บน GitHub อีกครั้ง แล้วกด Ctrl+F5",
     eqStatus: "สถานะเครื่องจักร", idleShort: "สงสัยว่าหยุด",
     nowState: "ตอนนี้",
+    wait: "กำลังตรวจ", dupEqId: "หมายเลขเครื่อง {id} มีอยู่แล้วที่อื่น ({where}) ในรายการจะแยกไม่ออก ควรใช้หมายเลขอื่น ต้องการบันทึกต่อหรือไม่?",
+    savedNext: "บันทึก {id} แล้ว วาดเครื่องถัดไป {next}",
+    blkTabTitle: "มีการวิเคราะห์ทำงานอยู่ในแท็บอื่นของเครื่องนี้", blkRemoteTitle: "การวิเคราะห์ {pc} ทำงานอยู่ที่เครื่องอื่น",
+    blkKeep: "การตรวจยังคงทำงานตามเดิม ไม่ต้องตั้งค่าใหม่",
+    blkTabHelp: "การวิเคราะห์ยังทำงานในแท็บแรก กรุณาปิดแท็บนี้ ดูสถานะได้ที่แดชบอร์ดและห้องควบคุม",
+    blkRemoteHelp: "ดูสถานะที่แดชบอร์ดหรือห้องควบคุม และแก้ไขกรอบตรวจได้ที่ [แก้ไขกรอบตรวจ] ในแดชบอร์ด",
+    blkForce: "วิเคราะห์ที่นี่", blkForceConfirm: "การวิเคราะห์กล้องเดียวกันสองที่จะทำให้บันทึกซ้ำ ทำต่อเฉพาะเมื่อ PC เดิมปิดอยู่หรือย้ายมาเครื่องนี้ ต้องการทำต่อหรือไม่?",
     srcScreen: "หน้าจอโปรแกรม CCTV (แนะนำ)", screenHint: "บันทึกแล้วกด [เลือกหน้าจอ CCTV] ที่ช่องกล้อง แล้วเลือกหน้าต่างโปรแกรม CCTV อย่าย่อหน้าต่าง และอย่าเปลี่ยนรูปแบบการแบ่งจอ",
     pickScreen: "เลือกหน้าจอ CCTV", repickScreen: "เลือกใหม่", needPick: "ต้องเลือกหน้าต่างโปรแกรม CCTV ก่อนจึงจะวิเคราะห์ได้", needPickShort: "ต้องเลือกหน้าจอ",
     skippedNow: "ทั้งจอเปลี่ยน ข้ามรอบนี้",
@@ -440,7 +476,7 @@ export function fmtHM(sec) {
 /* ---------- overlay ---------- */
 // zones: {zid: {eqId, eq:[x,y,w,h], op:[x,y,w,h]}} (0~1 정규화 좌표)
 // states: {zid: {state, since}}, persons: [[x,y,w,h], ...]
-export const FILL = { run: "rgba(30,132,73,.5)", idle: "rgba(210,32,26,.5)", off: "rgba(139,148,158,.5)", nosig: "rgba(217,154,0,.35)" };
+export const FILL = { run: "rgba(30,132,73,.5)", idle: "rgba(210,32,26,.5)", off: "rgba(139,148,158,.5)", nosig: "rgba(217,154,0,.35)", wait: "rgba(79,107,140,.35)" };
 export function drawOverlay(ctx, W, H, zones, states, persons, opt = {}) {
   const lw = Math.max(2, Math.round(W / 420));
   const fs = Math.max(12, Math.round(W / 58));

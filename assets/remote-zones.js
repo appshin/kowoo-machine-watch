@@ -1,8 +1,8 @@
 // 원격 감시 박스 편집 (대시보드용)
 // 분석 PC가 올려 주는 최신 CCTV 화면 위에 박스를 그려 Firebase에 저장한다.
 // 분석 PC는 설정 변경을 실시간으로 받아 바로 새 박스로 분석한다.
-import { R, set, remove, SITE, t, areaLabel, esc, natCmp, $, COLORS } from "./core.js?v=20261120g";
-import { createShapeEditor, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120g";
+import { R, set, remove, SITE, t, areaLabel, esc, natCmp, $, COLORS, nextEqId } from "./core.js?v=20261120j";
+import { createShapeEditor, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120j";
 
 const Z = { cid: null, zid: null, draft: null, timer: null, ed: null };
 let ctxFns = null;
@@ -42,7 +42,7 @@ export function refreshRemoteZones() {
 const cam = () => ctxFns.cams()[Z.cid] || {};
 function newDraft() {
   Z.zid = null;
-  Z.draft = { eqId: "", name: "", area: cam().area || SITE.areas[0], windowMin: 5, minRatio: 30, sens: 5 };
+  Z.draft = { eqId: nextEqId(ctxFns.cams()), name: "", area: cam().area || SITE.areas[0], windowMin: 5, minRatio: 30, sens: 5 };
   Z.ed.set(null);
   fill();
 }
@@ -105,16 +105,27 @@ function bind() {
       minRatio: Math.min(95, Math.max(1, +f.minRatio.value || 30)),
       sens: Math.min(10, Math.max(1, +f.sens.value || 5))
     };
-    if (!d.eqId) { toast(t("zoneNeedId")); return; }
+    if (!d.eqId) d.eqId = nextEqId(ctxFns.cams());
     const poly = Z.ed.poly;
     if (!poly) { toast(t("zoneNeedBox")); return; }
+    // 같은 설비번호가 다른 곳에 있으면 확인 (목록에서 구분이 안 되므로)
+    const dupAt = [];
+    for (const [cid2, cam2] of Object.entries((() => ctxFns.cams())())) for (const [zid2, z2] of Object.entries(cam2.zones || {})) {
+      if ((cid2 !== Z.cid || zid2 !== Z.zid) && String(z2.eqId || "").trim().toLowerCase() === d.eqId.toLowerCase())
+        dupAt.push(`${areaLabel(z2.area || cam2.area)} / ${cam2.name}`);
+    }
+    if (dupAt.length && !confirm(t("dupEqId", { id: d.eqId, where: dupAt.join(", ") }))) return;
+
     d.poly = poly;
     d.eq = polyBBox(poly).map(v => Math.round(v * 10000) / 10000);
+    const isNew = !Z.zid;
     const zid = Z.zid || "z" + Date.now().toString(36);
     try {
       await set(R(`config/cameras/${Z.cid}/zones/${zid}`), d);
-      Z.zid = zid; Z.draft = d;
-      fill(); renderList(); toast(t("saved"));
+      const c = ctxFns.cams()[Z.cid];
+      if (c) c.zones = { ...(c.zones || {}), [zid]: d };
+      if (isNew) { newDraft(); renderList(); draw(); toast(t("savedNext", { id: d.eqId, next: Z.draft.eqId })); }
+      else { Z.zid = zid; Z.draft = d; fill(); renderList(); toast(t("saved")); }
     } catch (err) { console.warn(err); toast(t("saveFail")); }
   });
   $("#rzDel").addEventListener("click", async () => {

@@ -8,6 +8,7 @@
   --idle: #D2201A;
   --off: #8B949E;
   --nosig: #D99A00;
+  --wait: #4F6B8C;
   --person: #1FA5C4;
   --font: "IBM Plex Sans KR", "IBM Plex Sans Thai", system-ui, -apple-system, "Segoe UI", "Malgun Gothic", sans-serif;
   --r-s: 4px;
@@ -274,3 +275,17 @@ body.room .seg { cursor: pointer; }
   .stat-table th, .stat-table td { padding: 6px 4px; }
   .rate i { display: none; }
 }
+
+/* 판정 중 (분석 시작 직후, 아직 가동/비가동을 모름) */
+.seg.wait { background: repeating-linear-gradient(135deg, #5B7798 0 6px, #4F6B8C 6px 12px); }
+.st-badge.wait { background: var(--wait); }
+.idle-item.st-wait { border-left-color: var(--wait); }
+
+/* 이미 다른 곳에서 분석 중일 때 안내 */
+.blocked { margin: 24px 20px; padding: 24px; max-width: 760px; display: flex; flex-direction: column; gap: 10px; }
+.blocked h2 { margin: 0; font-size: 22px; }
+.blocked .blk-ok { margin: 0; font-size: 17px; font-weight: 600; color: var(--run); }
+.blocked p { margin: 0; }
+.blocked a.btn { text-decoration: none; }
+.blocked > h2 { padding: 0; border: 0; }
+.blocked a.btn:not(.primary) { color: var(--ink); }

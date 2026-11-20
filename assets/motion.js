@@ -22,12 +22,12 @@ export function diffFraction(a, b, th = 22) {
 
 // 박스 하나의 판정 상태
 export function newZoneState(t) {
-  return { state: "run", since: t, hist: [], ratio: null, prev: null, motion: false };
+  return { state: "wait", since: t, hist: [], ratio: null, prev: null, motion: false };
 }
 
 // 최근 판단 시간(windowMin분) 동안 움직임 비율로 가동/비가동 판정
 //  - 기준 미만이면 비가동, 비가동에서 돌아올 때는 기준+5%p 이상이어야 가동 (깜빡임 방지)
-//  - 판단 시간의 절반(최대 1분)이 쌓이기 전에는 판정을 바꾸지 않음
+//  - 판단 시간의 절반(최대 1분)이 쌓이기 전에는 "판정 중"(wait) — 가동으로 미리 표시하지 않음
 export function judge(zs, t, motion, z) {
   const win = Math.max(1, +z.windowMin || 5) * 60000;
   zs.motion = !!motion;
@@ -39,7 +39,7 @@ export function judge(zs, t, motion, z) {
 
   const thr = (z.minRatio ?? 30) / 100;
   const covered = t - zs.hist[0][0];
-  const base = zs.state === "idle" ? "idle" : "run";
+  const base = zs.state === "idle" || zs.state === "run" ? zs.state : "wait";
   if (covered < Math.min(win * 0.5, 60000)) return base;
   if (base === "idle") return zs.ratio >= thr + 0.05 ? "run" : "idle";
   return zs.ratio < thr ? "idle" : "run";

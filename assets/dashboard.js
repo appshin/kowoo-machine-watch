@@ -2,8 +2,8 @@ import {
   authGate, isConfigured, showSetup, R, onValue, set, remove, onDisconnect, serverTimestamp,
   query, orderByChild, limitToLast, now, SITE, t, applyI18n, bindLangSelects, shiftOf, fmtClock, fmtStamp,
   fmtDur, fmtHM, drawOverlay, areaLabel, stateLabel, esc, natCmp, $
-} from "./core.js?v=20261120g";
-import { initRemoteZones, openRemoteZones, refreshRemoteZones } from "./remote-zones.js?v=20261120g";
+} from "./core.js?v=20261120j";
+import { initRemoteZones, openRemoteZones, refreshRemoteZones } from "./remote-zones.js?v=20261120j";
 
 const STALE_MS = 30000;        // 분석 PC 신호가 30초 넘게 없으면 '신호없음'
 const S = {
@@ -106,7 +106,7 @@ function renderAll() {
 }
 
 function renderAndon(list) {
-  const c = { run: 0, idle: 0, off: 0, nosig: 0 };
+  const c = { run: 0, idle: 0, wait: 0, off: 0, nosig: 0 };
   list.forEach(i => { c[i.state]++; });
   const title = $("#andonTitle");
   if (!list.length) { title.textContent = t("noCameras"); title.className = "andon-title"; }
@@ -115,7 +115,7 @@ function renderAndon(list) {
   $("#brandMark").classList.toggle("alert", c.idle > 0);
   document.title = (c.idle ? `(${c.idle}) ` : "") + t("appTitle");
 
-  $("#tally").innerHTML = ["run", "idle", "off", "nosig"].map(k =>
+  $("#tally").innerHTML = ["run", "idle", "wait", "off", "nosig"].map(k =>
     `<span style="--c:var(--${k})">${esc(stateLabel(k))}<b>${c[k]}</b></span>`).join("");
 
   const groups = {};
@@ -153,7 +153,7 @@ function renderTabs(list) {
 
 // 설비 상태 목록: 위 안돈 칸과 같은 색으로, 비가동 의심 → 가동 → 계획정지 → 신호없음 순
 function renderIdle(list) {
-  const order = { idle: 0, run: 1, off: 2, nosig: 3 };
+  const order = { idle: 0, wait: 1, run: 2, off: 3, nosig: 4 };
   const sorted = [...list].sort((a, b) => (order[a.state] - order[b.state]) ||
     (a.state === "idle" ? (a.since || 0) - (b.since || 0) : 0) ||
     (SITE.areas.indexOf(a.area) - SITE.areas.indexOf(b.area)) || natCmp(a.z.eqId, b.z.eqId));

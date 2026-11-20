@@ -2,7 +2,7 @@ import {
   authGate, isConfigured, showSetup, R, onValue, set, remove, onDisconnect, serverTimestamp,
   now, SITE, t, applyI18n, bindLangSelects, fmtClock, fmtDur, areaLabel, stateLabel, esc, $,
   buildItems, camFreshOf, beep
-} from "./core.js?v=20261120g";
+} from "./core.js?v=20261120j";
 
 // 종합상황실: 비가동 의심 설비만 크게 모아 보여 줌 (사무실 벽 모니터용)
 const S = { user: null, role: null, cams: {}, live: {}, plan: {}, crops: {}, thumbs: {}, sound: false, prevIdle: null, watchRef: null };
@@ -42,7 +42,7 @@ function syncWatch() {
 function render() {
   const list = buildItems(S.cams, S.live, S.plan);
   const idle = list.filter(i => i.state === "idle").sort((a, b) => (a.since || 0) - (b.since || 0));
-  const c = { run: 0, idle: 0, off: 0, nosig: 0 };
+  const c = { run: 0, idle: 0, wait: 0, off: 0, nosig: 0 };
   list.forEach(i => { c[i.state]++; });
 
   const title = $("#andonTitle");
@@ -51,7 +51,7 @@ function render() {
   else { title.textContent = t("allRunning"); title.className = "andon-title is-ok"; }
   $("#brandMark").classList.toggle("alert", c.idle > 0);
   document.title = (c.idle ? `(${c.idle}) ` : "") + t("roomTitle");
-  $("#tally").innerHTML = ["run", "idle", "off", "nosig"].map(k =>
+  $("#tally").innerHTML = ["run", "idle", "wait", "off", "nosig"].map(k =>
     `<span style="--c:var(--${k})">${esc(stateLabel(k))}<b>${c[k]}</b></span>`).join("");
 
   const groups = {};

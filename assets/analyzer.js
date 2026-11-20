@@ -1,10 +1,10 @@
 import {
-  authGate, isConfigured, showSetup, R, onValue, set, update, push, remove, onDisconnect,
+  authGate, isConfigured, showSetup, R, onValue, get, set, update, push, remove, onDisconnect,
   serverTimestamp, increment, now, SITE, t, applyI18n, bindLangSelects, shiftOf, drawOverlay,
-  areaLabel, esc, natCmp, $, COLORS, ALERT, tl, tzParts, fmtClock
-} from "./core.js?v=20261120g";
-import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge } from "./motion.js?v=20261120g";
-import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120g";
+  areaLabel, esc, natCmp, $, COLORS, ALERT, tl, tzParts, fmtClock, nextEqId
+} from "./core.js?v=20261120j";
+import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge } from "./motion.js?v=20261120j";
+import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120j";
 
 const DEFAULTS = { analyzeMs: 1000, pixThresh: 22, skipPct: 40, frameMs: 2000, frameW: 960 };
 const CROP_MS = 5000, ALERT_CHECK_MS = 30000;
@@ -78,8 +78,18 @@ bindLangSelects();
 if (!isConfigured()) showSetup();
 else authGate({ onReady });
 
-function onReady({ user, role }) {
+// 대시보드·상황실의 [분석 화면] 버튼이 새 탭 대신 이 탭으로 오도록 탭 이름을 붙임
+window.name = "kcw_analyzer";
+
+async function onReady({ user, role }) {
   S.user = user; S.role = role;
+  // 이미 다른 곳에서 분석 중이면 이 탭은 아무것도 시작하지 않음 (기존 감시를 건드리지 않음)
+  const other = await findRunningAnalyzer();
+  if (other && !(await showBlocked(other))) return;
+  startAnalyzer();
+}
+function startAnalyzer() {
+  S.started = true;
   $("#agentName").value = S.agent;
   $("#autoStart").checked = LS.get("autostart", false);
   document.querySelectorAll(".area-select").forEach(sel => {
@@ -97,10 +107,45 @@ function onReady({ user, role }) {
   setInterval(heartbeat, 10000);
   window.addEventListener("langchange", () => { updateRunBtn(); syncRunners(true); });
   loop();
-  // 같은 PC(같은 브라우저)에 분석 화면이 이미 열려 있으면 경고하고 자동 시작하지 않음
-  checkDuplicate().then(dup => {
-    if (dup) { const w = $("#warn"); w.textContent = t("dupTab"); w.hidden = false; }
-    else if ($("#autoStart").checked) setRunning(true);
+  if ($("#autoStart").checked) setRunning(true);
+}
+
+// 같은 컴퓨터의 다른 탭, 또는 같은 PC 이름으로 다른 컴퓨터에서 분석 중인지 확인
+async function findRunningAnalyzer() {
+  if (await checkDuplicate()) return "tab";
+  try {
+    const a = (await get(R(`agents/${S.agent}`))).val();
+    if (a?.running && now() - (a.ts || 0) < 30000) return "remote";
+  } catch (e) { console.warn(e); }
+  return null;
+}
+// 안내 화면. "여기서 실행"을 누르면 true
+function showBlocked(kind) {
+  return new Promise(res => {
+    const box = document.createElement("section");
+    box.className = "blocked panel";
+    box.innerHTML = `
+      <h2>${esc(t(kind === "tab" ? "blkTabTitle" : "blkRemoteTitle", { pc: S.agent }))}</h2>
+      <p class="blk-ok">${esc(t("blkKeep"))}</p>
+      <p>${esc(t(kind === "tab" ? "blkTabHelp" : "blkRemoteHelp"))}</p>
+      <div class="row">
+        <a class="btn primary" href="index.html">${esc(t("backDash"))}</a>
+        <a class="btn" href="room.html">${esc(t("openRoom"))}</a>
+        <span class="spacer"></span>
+        <button type="button" class="btn small danger" data-force>${esc(t("blkForce"))}</button>
+      </div>`;
+    document.querySelector(".toolbar").before(box);
+    document.querySelector(".toolbar").hidden = true;
+    $("#tiles").hidden = true;
+    document.querySelectorAll("#app > .hint").forEach(h => { h.hidden = true; });
+    box.querySelector("[data-force]").addEventListener("click", () => {
+      if (!confirm(t("blkForceConfirm"))) return;
+      box.remove();
+      document.querySelector(".toolbar").hidden = false;
+      $("#tiles").hidden = false;
+      document.querySelectorAll("#app > .hint").forEach(h => { h.hidden = false; });
+      res(true);
+    });
   });
 }
 
@@ -274,7 +319,7 @@ class Runner {
   }
   resetJudge() {
     this.prevFull = null;
-    for (const zs of Object.values(this.zs)) { zs.prev = null; zs.hist = []; zs.ratio = null; zs.state = "run"; zs.since = now(); }
+    for (const zs of Object.values(this.zs)) { zs.prev = null; zs.hist = []; zs.ratio = null; zs.state = "wait"; zs.since = now(); }
   }
   close() {
     if (this.hls) { try { this.hls.destroy(); } catch {} this.hls = null; }
@@ -389,9 +434,9 @@ class Runner {
         const d = diffFractionMasked(g, zs.prev, th, mask);
         zs.prev = g;
         if (d !== null && !this.skipped) {
-          if (zs.state === "off" || zs.state === "nosig") zs.state = "run";
+          if (zs.state === "off" || zs.state === "nosig") { zs.state = "wait"; zs.since = t0; zs.hist = []; }
           ns = judge(zs, t0, d * 100 >= sensPct(z.sens), z);
-        } else if (zs.state === "off" || zs.state === "nosig") ns = "run";
+        } else if (zs.state === "off" || zs.state === "nosig") ns = "wait";
       }
       if (ns !== zs.state) {
         if (ns === "idle" || zs.state === "idle") {
@@ -402,7 +447,9 @@ class Runner {
           }).catch(console.warn);
         }
         if (zs.state === "idle") remove(R(`crops/${this.id}__${zid}`)).catch(() => {});
-        zs.state = ns; zs.since = t0; changed = true;
+        // 판정 중 → 비가동이면, 관찰을 시작한 시각부터 멈춰 있던 것으로 봄
+        zs.since = zs.state === "wait" && ns === "idle" && zs.hist.length ? zs.hist[0][0] : t0;
+        zs.state = ns; changed = true;
       }
       states[zid] = {
         state: zs.state, since: zs.since,
@@ -463,7 +510,7 @@ class Runner {
   }
   stopped() {
     this.flush();
-    for (const zs of Object.values(this.zs)) { zs.hist = []; zs.ratio = null; zs.state = "run"; }
+    for (const zs of Object.values(this.zs)) { zs.hist = []; zs.ratio = null; zs.state = "wait"; zs.since = now(); }
     this.states = {}; this.lastAcc = 0;
     set(R(`live/${this.id}`), { ts: serverTimestamp(), online: false, agent: S.agent, stopped: true }).catch(() => {});
   }
@@ -652,7 +699,7 @@ window.addEventListener("beforeunload", e => {
   if (S.running) { e.preventDefault(); e.returnValue = ""; }
 });
 const bc = "BroadcastChannel" in window ? new BroadcastChannel("kcw-analyzer") : null;
-bc?.addEventListener("message", e => { if (e.data === "who" && S.running) bc.postMessage("running"); });
+bc?.addEventListener("message", e => { if (e.data === "who" && S.started) bc.postMessage("running"); });
 function checkDuplicate() {
   if (!bc) return Promise.resolve(false);
   return new Promise(res => {
@@ -673,7 +720,7 @@ function updateRunBtn() {
   $("#brandMark").classList.toggle("alert", !S.running);
 }
 function heartbeat() {
-  if (!S.user) return;
+  if (!S.user || !S.started) return;
   const r = R(`agents/${S.agent}`);
   set(r, { ts: serverTimestamp(), running: S.running, cams: [...S.runners.keys()], by: S.user.email || "" }).catch(() => {});
   onDisconnect(r).remove();
@@ -857,7 +904,7 @@ function openZones(cid) {
 }
 function newDraft() {
   Z.zid = null;
-  Z.draft = { eqId: "", name: "", area: S.cams[Z.cid]?.area || SITE.areas[0], windowMin: 5, minRatio: 30, sens: 5 };
+  Z.draft = { eqId: nextEqId(S.cams), name: "", area: S.cams[Z.cid]?.area || SITE.areas[0], windowMin: 5, minRatio: 30, sens: 5 };
   Z.ed.set(null);
   fillZoneForm();
 }
@@ -919,15 +966,26 @@ function bindZoneEditor() {
       minRatio: Math.min(95, Math.max(1, +f.minRatio.value || 30)),
       sens: Math.min(10, Math.max(1, +f.sens.value || 5))
     };
-    if (!d.eqId) { toast(t("zoneNeedId")); return; }
+    if (!d.eqId) d.eqId = nextEqId(S.cams);
     if (!poly) { toast(t("zoneNeedBox")); return; }
+    // 같은 설비번호가 다른 곳에 있으면 확인 (목록에서 구분이 안 되므로)
+    const dupAt = [];
+    for (const [cid2, cam2] of Object.entries((() => S.cams)())) for (const [zid2, z2] of Object.entries(cam2.zones || {})) {
+      if ((cid2 !== Z.cid || zid2 !== Z.zid) && String(z2.eqId || "").trim().toLowerCase() === d.eqId.toLowerCase())
+        dupAt.push(`${areaLabel(z2.area || cam2.area)} / ${cam2.name}`);
+    }
+    if (dupAt.length && !confirm(t("dupEqId", { id: d.eqId, where: dupAt.join(", ") }))) return;
+
     d.poly = poly;
     d.eq = polyBBox(poly).map(v => Math.round(v * 10000) / 10000);   // 바깥 사각형 (확대 화면·표시용)
+    const isNew = !Z.zid;
     const zid = Z.zid || "z" + Date.now().toString(36);
     try {
       await set(R(`config/cameras/${Z.cid}/zones/${zid}`), d);
-      Z.zid = zid; Z.draft = d;
-      fillZoneForm(); renderZoneList(); toast(t("saved"));
+      S.cams[Z.cid].zones = { ...(S.cams[Z.cid].zones || {}), [zid]: d };
+      // 새 설비를 저장하면 바로 다음 새 설비(다음 번호)로 넘어가 연달아 그릴 수 있게
+      if (isNew) { newDraft(); renderZoneList(); drawZone(); toast(t("savedNext", { id: d.eqId, next: Z.draft.eqId })); }
+      else { Z.zid = zid; Z.draft = d; fillZoneForm(); renderZoneList(); toast(t("saved")); }
     } catch (err) { console.warn(err); toast(t("saveFail")); }
   });
   $("#zoneDel").addEventListener("click", async () => {
