@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KOWOO Thai 종합상황실</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='1' width='14' height='14' rx='3' fill='%23D2201A'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body class="room">
+<div id="setupMsg" class="setup" hidden></div>
+
+<section id="login" class="login" hidden>
+  <form class="login-box">
+    <div class="brand-row"><span class="brand-mark alert"></span><strong data-i18n="roomTitle"></strong></div>
+    <label><span data-i18n="email"></span><input name="email" type="email" autocomplete="username" required></label>
+    <label><span data-i18n="password"></span><input name="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit" class="btn primary" data-i18n="login"></button>
+    <p class="login-msg" role="alert"></p>
+    <select class="lang-select" aria-label="Language">
+      <option value="ko">한국어</option><option value="en">English</option><option value="th">ไทย</option>
+    </select>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark" id="brandMark"></span><span data-i18n="roomTitle"></span></div>
+    <div class="clock"><span data-i18n="siteTime"></span><b id="clkSite">--:--</b></div>
+    <div class="clock"><span data-i18n="krTime"></span><b id="clkHome">--:--</b></div>
+    <a class="top-link" href="index.html" data-i18n="backDash"></a>
+    <select id="roomSize" aria-label="size">
+      <option value="s" data-i18n="sizeS"></option>
+      <option value="m" data-i18n="sizeM"></option>
+      <option value="l" data-i18n="sizeL"></option>
+      <option value="xl" data-i18n="sizeXL"></option>
+    </select>
+    <button id="fsBtn" type="button" data-i18n="fullscreen"></button>
+    <button id="soundBtn" type="button" aria-pressed="false" data-i18n="sound"></button>
+    <select class="lang-select" aria-label="Language">
+      <option value="ko">한국어</option><option value="en">English</option><option value="th">ไทย</option>
+    </select>
+    <button type="button" data-action="logout" data-i18n="logout"></button>
+  </header>
+
+  <section class="andon" aria-live="polite">
+    <div class="andon-head">
+      <h1 id="andonTitle" class="andon-title"></h1>
+      <div id="tally" class="tally"></div>
+    </div>
+    <div id="andonStrip" class="andon-strip"></div>
+  </section>
+
+  <main class="room-main">
+    <div id="roomOk" class="room-ok" hidden></div>
+    <section id="idleSec" hidden>
+      <h2 class="room-head"><span data-i18n="roomIdleHead"></span> <b id="idleN"></b></h2>
+      <div id="idleGrid" class="room-grid"></div>
+    </section>
+    <section id="nosigSec" hidden>
+      <h2 class="room-head"><span data-i18n="roomNosigHead"></span> <b id="nosigN"></b></h2>
+      <div id="nosigGrid" class="room-grid small"></div>
+    </section>
+  </main>
+</div>
+
+<script type="module" src="assets/room.js"></script>
+</body>
+</html>

@@ -18,6 +18,47 @@ if (isConfigured()) {
 }
 export { auth, db };
 export const R = (p = "") => ref(db, p ? `${SITE.root}/${p}` : SITE.root);
+// 알림 설정(중계 주소·키)은 cctv 밖에 두어 admin·agent만 읽게 함
+export const ALERT = () => ref(db, `${SITE.root}Alert`);
+
+/* ---------- 설비 상태 목록 (대시보드·상황실 공용) ---------- */
+export const STALE_MS = 30000;
+export function camFreshOf(live, cid) {
+  const lv = live?.[cid];
+  return !!lv && lv.online !== false && now() - (lv.ts || 0) < STALE_MS;
+}
+export function buildItems(cams, live, plan) {
+  const out = [];
+  for (const [cid, cam] of Object.entries(cams || {})) {
+    const fresh = camFreshOf(live, cid), lv = live?.[cid];
+    for (const [zid, z] of Object.entries(cam.zones || {})) {
+      let state, since, r = null, m = 0;
+      const pl = plan?.[cid]?.[zid];
+      if (pl) { state = "off"; since = pl.ts; }
+      else if (!fresh) { state = "nosig"; since = lv?.ts; }
+      else { const zs = lv.zones?.[zid]; state = zs?.state || "nosig"; since = zs?.since; r = zs?.r ?? null; m = zs?.m || 0; }
+      out.push({ cid, zid, cam, z, state, since, r, m, area: z.area || cam.area || "ETC" });
+    }
+  }
+  return out.sort((a, b) => (SITE.areas.indexOf(a.area) - SITE.areas.indexOf(b.area)) || natCmp(a.z.eqId, b.z.eqId));
+}
+let audioCtx = null;
+export function beep(unlock = false) {
+  try {
+    audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
+    if (unlock) audioCtx.resume();
+  } catch { return; }
+  const a = audioCtx;
+  [0, 0.35].forEach(off => {
+    const o = a.createOscillator(), g = a.createGain();
+    o.frequency.value = 880; o.type = "square";
+    g.gain.setValueAtTime(0.0001, a.currentTime + off);
+    g.gain.exponentialRampToValueAtTime(0.2, a.currentTime + off + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + off + 0.25);
+    o.connect(g).connect(a.destination);
+    o.start(a.currentTime + off); o.stop(a.currentTime + off + 0.3);
+  });
+}
 
 // 서버 기준 시간 (태국 PC와 한국 PC의 시계 차이를 없앰)
 let offset = 0;
@@ -84,6 +125,14 @@ const DICT = {
     srcUrl: "시험용 웹 주소 (실시간 웹캠 사이트)", urlLabel: "웹캠 주소", urlHint: "직접 영상 주소(.m3u8, .mp4, .mjpg, 스냅샷 .jpg)는 바로 분석합니다. 유튜브 같은 일반 사이트 주소는 [사이트 열기]로 새 창을 연 뒤 [화면 선택]에서 그 창(탭)을 고르면 분석됩니다.",
     openSite: "사이트 열기", urlPageMsg: "[사이트 열기]로 새 창을 연 뒤, [화면 선택]을 눌러 그 창이나 탭을 고르세요. 사이트 창은 최소화하지 마세요.",
     urlBlocked: "이 주소는 영상을 직접 읽을 수 없습니다 (사이트 차단 또는 잘못된 주소). [사이트 열기] 후 [화면 선택]으로 시험하세요.",
+    roomTitle: "코우타이 종합상황실", openRoom: "종합상황실", backDash: "대시보드", fullscreen: "전체 화면", roomIdleHead: "비가동 의심 설비", roomNosigHead: "영상 신호 없는 카메라", roomNoImage: "확대 화면을 불러오는 중입니다", roomAllOk: "모든 설비가 가동 중입니다",
+    alertSettings: "LINE 알림 설정", alEnabled: "알림 보내기", alUrl: "중계 주소 (구글 앱스 스크립트 웹 앱 URL)", alKey: "중계 비밀키 (스크립트의 RELAY_KEY와 같게)",
+    alDelay: "비가동 의심이 이 시간(분) 이상 계속되면 알림", alRepeat: "계속 비가동이면 다시 알림 (분, 0 = 다시 안 보냄)", alResolved: "가동으로 돌아오면 알림 (메시지 수 늘어남)",
+    alQuiet: "알림 쉬는 시간 (태국 시간, 점심·교대 시간)", alLangs: "메시지 언어", alRoomUrl: "메시지에 넣을 종합상황실 주소",
+    alHint: "LINE 공식계정 메시지는 보낸 횟수 × 받는 사람 수로 계산됩니다. 여러 설비는 한 메시지로 묶어 보냅니다.", alTest: "시험 메시지 보내기",
+    alTestSent: "보냈습니다. LINE에서 확인하세요.", alNeedUrl: "중계 주소를 입력하세요.", alTestText: "시험 메시지입니다",
+    alertHead: "비가동 의심 {n}대", alertStill: "계속 비가동", alertNosig: "영상 신호 없음", alertBack: "가동 복귀",
+    tileSize: "화면 크기", sizeS: "작게", sizeM: "보통", sizeL: "크게", sizeXL: "한 줄에 하나 (가장 크게)", bigView: "크게 보기",
     srcScreen: "CCTV 프로그램 화면 (권장)", screenHint: "저장 후 카메라 칸의 [CCTV 화면 선택]을 눌러 CCTV 프로그램 창을 고르세요. CCTV 창은 최소화하지 말고 분할 화면을 고정해 두세요.",
     pickScreen: "CCTV 화면 선택", repickScreen: "화면 다시 선택", needPick: "CCTV 프로그램 창을 선택해야 분석할 수 있습니다.", needPickShort: "화면 선택 필요",
     skippedNow: "화면 전체 변화로 이번 회차 제외",
@@ -143,6 +192,14 @@ const DICT = {
     srcUrl: "Test web address (live webcam site)", urlLabel: "Webcam address", urlHint: "Direct stream addresses (.m3u8, .mp4, .mjpg, snapshot .jpg) are analyzed directly. For ordinary sites such as YouTube, press [Open site], then [Choose CCTV screen] and pick that window or tab.",
     openSite: "Open site", urlPageMsg: "Press [Open site] to open a new window, then [Choose CCTV screen] and pick that window or tab. Do not minimize the site window.",
     urlBlocked: "This address cannot be read directly (blocked by the site or wrong address). Use [Open site] and then [Choose CCTV screen].",
+    roomTitle: "KOWOO Thai situation room", openRoom: "Situation room", backDash: "Dashboard", fullscreen: "Full screen", roomIdleHead: "Machines suspected idle", roomNosigHead: "Cameras without video", roomNoImage: "Loading the close-up view", roomAllOk: "Every machine is running",
+    alertSettings: "LINE alerts", alEnabled: "Send alerts", alUrl: "Relay address (Google Apps Script web app URL)", alKey: "Relay secret (same as RELAY_KEY in the script)",
+    alDelay: "Alert when suspected idle lasts this long (min)", alRepeat: "Remind if still idle every (min, 0 = never)", alResolved: "Alert when a machine runs again (more messages)",
+    alQuiet: "Quiet times (Thailand time, breaks and shift change)", alLangs: "Message languages", alRoomUrl: "Situation room address in messages",
+    alHint: "LINE Official Account messages are counted as sends × recipients. Several machines are grouped into one message.", alTest: "Send test message",
+    alTestSent: "Sent. Check LINE.", alNeedUrl: "Enter the relay address.", alTestText: "This is a test message",
+    alertHead: "{n} machines suspected idle", alertStill: "Still idle", alertNosig: "No video signal", alertBack: "Running again",
+    tileSize: "View size", sizeS: "Small", sizeM: "Medium", sizeL: "Large", sizeXL: "One per row (largest)", bigView: "Full screen",
     srcScreen: "CCTV program screen (recommended)", screenHint: "After saving, press [Choose CCTV screen] on the camera tile and pick the CCTV program window. Do not minimize it, and keep the split layout fixed.",
     pickScreen: "Choose CCTV screen", repickScreen: "Choose again", needPick: "Choose the CCTV program window to start analysis.", needPickShort: "Choose a screen",
     skippedNow: "whole screen changed, sample skipped",
@@ -202,6 +259,14 @@ const DICT = {
     srcUrl: "ที่อยู่เว็บทดสอบ (เว็บกล้องสด)", urlLabel: "ที่อยู่เว็บแคม", urlHint: "ที่อยู่สตรีมโดยตรง (.m3u8, .mp4, .mjpg, ภาพนิ่ง .jpg) จะวิเคราะห์ได้ทันที สำหรับเว็บทั่วไปเช่น YouTube ให้กด [เปิดเว็บ] แล้วกด [เลือกหน้าจอ CCTV] และเลือกหน้าต่างหรือแท็บนั้น",
     openSite: "เปิดเว็บ", urlPageMsg: "กด [เปิดเว็บ] เพื่อเปิดหน้าต่างใหม่ แล้วกด [เลือกหน้าจอ CCTV] และเลือกหน้าต่างหรือแท็บนั้น อย่าย่อหน้าต่างเว็บ",
     urlBlocked: "อ่านภาพจากที่อยู่นี้โดยตรงไม่ได้ (เว็บบล็อกหรือที่อยู่ผิด) กรุณากด [เปิดเว็บ] แล้ว [เลือกหน้าจอ CCTV]",
+    roomTitle: "ห้องควบคุม KOWOO Thai", openRoom: "ห้องควบคุม", backDash: "แดชบอร์ด", fullscreen: "เต็มจอ", roomIdleHead: "เครื่องที่สงสัยว่าหยุด", roomNosigHead: "กล้องที่ไม่มีภาพ", roomNoImage: "กำลังโหลดภาพขยาย", roomAllOk: "ทุกเครื่องกำลังเดิน",
+    alertSettings: "ตั้งค่าแจ้งเตือน LINE", alEnabled: "ส่งการแจ้งเตือน", alUrl: "ที่อยู่ตัวกลาง (URL เว็บแอป Google Apps Script)", alKey: "รหัสลับตัวกลาง (ตรงกับ RELAY_KEY ในสคริปต์)",
+    alDelay: "แจ้งเตือนเมื่อสงสัยว่าหยุดนานเกิน (นาที)", alRepeat: "แจ้งซ้ำถ้ายังหยุดอยู่ทุก (นาที, 0 = ไม่แจ้งซ้ำ)", alResolved: "แจ้งเมื่อเครื่องกลับมาเดิน (ข้อความเพิ่มขึ้น)",
+    alQuiet: "ช่วงเวลาไม่แจ้งเตือน (เวลาไทย พักเที่ยง เปลี่ยนกะ)", alLangs: "ภาษาข้อความ", alRoomUrl: "ที่อยู่ห้องควบคุมในข้อความ",
+    alHint: "ข้อความ LINE OA นับเป็นจำนวนครั้งที่ส่ง × จำนวนผู้รับ เครื่องหลายเครื่องจะรวมเป็นข้อความเดียว", alTest: "ส่งข้อความทดสอบ",
+    alTestSent: "ส่งแล้ว กรุณาตรวจสอบใน LINE", alNeedUrl: "กรุณาใส่ที่อยู่ตัวกลาง", alTestText: "นี่คือข้อความทดสอบ",
+    alertHead: "สงสัยว่าหยุด {n} เครื่อง", alertStill: "ยังหยุดอยู่", alertNosig: "ไม่มีสัญญาณภาพ", alertBack: "กลับมาเดิน",
+    tileSize: "ขนาดภาพ", sizeS: "เล็ก", sizeM: "กลาง", sizeL: "ใหญ่", sizeXL: "แถวละหนึ่ง (ใหญ่สุด)", bigView: "เต็มจอ",
     srcScreen: "หน้าจอโปรแกรม CCTV (แนะนำ)", screenHint: "บันทึกแล้วกด [เลือกหน้าจอ CCTV] ที่ช่องกล้อง แล้วเลือกหน้าต่างโปรแกรม CCTV อย่าย่อหน้าต่าง และอย่าเปลี่ยนรูปแบบการแบ่งจอ",
     pickScreen: "เลือกหน้าจอ CCTV", repickScreen: "เลือกใหม่", needPick: "ต้องเลือกหน้าต่างโปรแกรม CCTV ก่อนจึงจะวิเคราะห์ได้", needPickShort: "ต้องเลือกหน้าจอ",
     skippedNow: "ทั้งจอเปลี่ยน ข้ามรอบนี้",
@@ -218,6 +283,11 @@ let LANG = (() => {
   return LANGS.includes(n) ? n : "ko";
 })();
 export const getLang = () => LANG;
+export function tl(lang, k, vars) {
+  let s = DICT[lang]?.[k] ?? DICT.en[k] ?? k;
+  if (vars) for (const [a, b] of Object.entries(vars)) s = s.replaceAll(`{${a}}`, b);
+  return s;
+}
 export function t(k, vars) {
   let s = DICT[LANG]?.[k] ?? DICT.en[k] ?? k;
   if (vars) for (const [a, b] of Object.entries(vars)) s = s.replaceAll(`{${a}}`, b);

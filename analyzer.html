@@ -41,10 +41,19 @@
     <label class="field"><span data-i18n="agentName"></span><input id="agentName" maxlength="24" size="12"></label>
     <button id="runBtn" type="button" class="btn primary"></button>
     <label class="check"><input type="checkbox" id="autoStart"><span data-i18n="autoStart"></span></label>
+    <label class="field"><span data-i18n="tileSize"></span>
+      <select id="tileSize">
+        <option value="s" data-i18n="sizeS"></option>
+        <option value="m" data-i18n="sizeM"></option>
+        <option value="l" data-i18n="sizeL"></option>
+        <option value="xl" data-i18n="sizeXL"></option>
+      </select>
+    </label>
     <span id="engineStatus" class="meta"></span>
     <span class="spacer"></span>
     <button id="addCamBtn" type="button" class="btn admin-only" data-i18n="addCamera"></button>
     <button id="settingsBtn" type="button" class="btn admin-only" data-i18n="settings"></button>
+    <button id="alertBtn" type="button" class="btn admin-only" data-i18n="alertSettings"></button>
   </section>
   <p class="hint" style="margin:8px 20px 0" data-i18n="agentHint"></p>
 
@@ -129,6 +138,32 @@
     <label class="field"><span data-i18n="frameW"></span><input name="frameW" type="number" min="480" max="1280" step="80"></label>
     <div class="row">
       <button type="submit" class="btn primary" data-i18n="save"></button>
+      <button type="button" class="btn" data-close data-i18n="cancel"></button>
+    </div>
+  </form>
+</dialog>
+
+<!-- LINE 알림 설정 -->
+<dialog id="alertDlg">
+  <form id="alertForm" class="dlg-form">
+    <h3 data-i18n="alertSettings"></h3>
+    <label class="check"><input name="enabled" type="checkbox"><span data-i18n="alEnabled"></span></label>
+    <label class="field"><span data-i18n="alUrl"></span><input name="url" type="url" placeholder="https://script.google.com/macros/s/.../exec"></label>
+    <label class="field"><span data-i18n="alKey"></span><input name="key" maxlength="80"></label>
+    <label class="field"><span data-i18n="alDelay"></span><input name="delayMin" type="number" min="1" max="240"></label>
+    <label class="field"><span data-i18n="alRepeat"></span><input name="repeatMin" type="number" min="0" max="1440"></label>
+    <label class="check"><input name="resolved" type="checkbox"><span data-i18n="alResolved"></span></label>
+    <label class="field"><span data-i18n="alQuiet"></span><input name="quiet" placeholder="12:00-13:00, 00:00-00:30"></label>
+    <fieldset class="lang-checks"><legend data-i18n="alLangs"></legend>
+      <label class="check"><input type="checkbox" name="langs" value="th">ไทย</label>
+      <label class="check"><input type="checkbox" name="langs" value="ko">한국어</label>
+      <label class="check"><input type="checkbox" name="langs" value="en">English</label>
+    </fieldset>
+    <label class="field"><span data-i18n="alRoomUrl"></span><input name="roomUrl" type="url"></label>
+    <p class="hint" data-i18n="alHint"></p>
+    <div class="row">
+      <button type="submit" class="btn primary" data-i18n="save"></button>
+      <button type="button" id="alertTest" class="btn" data-i18n="alTest"></button>
       <button type="button" class="btn" data-close data-i18n="cancel"></button>
     </div>
   </form>

@@ -1,11 +1,12 @@
 import {
   authGate, isConfigured, showSetup, R, onValue, set, update, push, remove, onDisconnect,
   serverTimestamp, increment, now, SITE, t, applyI18n, bindLangSelects, shiftOf, drawOverlay,
-  areaLabel, esc, natCmp, $, COLORS
+  areaLabel, esc, natCmp, $, COLORS, ALERT, tl, tzParts, fmtClock
 } from "./core.js";
 import { toGray, diffFraction, sensPct, newZoneState, judge } from "./motion.js";
 
 const DEFAULTS = { analyzeMs: 1000, pixThresh: 22, skipPct: 40, frameMs: 2000, frameW: 960 };
+const CROP_MS = 5000, ALERT_CHECK_MS = 30000;
 const THUMB_MS = 60000, LIVE_HEARTBEAT_MS = 5000, STATS_FLUSH_MS = 15000;
 
 // 브라우저가 화면 밖 영상을 멈추지 않도록 1px 컨테이너에 붙여 둠
@@ -23,7 +24,7 @@ const clamp01 = v => Math.min(1, Math.max(0, v));
 const S = {
   user: null, role: null, agent: cleanKey(LS.get("agent", "PC-1")),
   cams: {}, plan: {}, settings: { ...DEFAULTS },
-  runners: new Map(), running: false, wake: null
+  runners: new Map(), running: false, wake: null, roomWatchers: 0, alertCfg: null
 };
 
 applyI18n();
@@ -41,6 +42,9 @@ function onReady({ user, role }) {
   onValue(R("config/cameras"), s => { S.cams = s.val() || {}; syncRunners(); if ($("#zoneDlg").open) renderZoneList(); });
   onValue(R("config/settings"), s => { S.settings = { ...DEFAULTS, ...(s.val() || {}) }; });
   onValue(R("plan"), s => { S.plan = s.val() || {}; });
+  onValue(R("watch/_room"), s => { S.roomWatchers = Object.keys(s.val() || {}).length; });
+  onValue(ALERT(), s => { S.alertCfg = s.val(); }, () => { S.alertCfg = null; });
+  setInterval(checkAlerts, ALERT_CHECK_MS);
   bindUi();
   updateRunBtn();
   heartbeat();
@@ -323,6 +327,7 @@ class Runner {
             r: zs.ratio == null ? null : Math.round(zs.ratio * 100)
           }).catch(console.warn);
         }
+        if (zs.state === "idle") remove(R(`crops/${this.id}__${zid}`)).catch(() => {});
         zs.state = ns; zs.since = t0; changed = true;
       }
       states[zid] = {
@@ -351,6 +356,17 @@ class Runner {
     if (grabbed && this.watchers > 0 && t0 - this.lastFrame >= +st.frameMs) {
       this.lastFrame = t0;
       set(R(`frames/${this.id}`), { ts: serverTimestamp(), jpg: toJpeg(this.canvas, +st.frameW, 0.6), p: [] }).catch(console.warn);
+    }
+    // 종합상황실: 누군가 보고 있을 때만 비가동 구역 확대 화면 올림
+    if (grabbed && S.roomWatchers > 0 && t0 - (this.lastCrop || 0) >= CROP_MS) {
+      this.lastCrop = t0;
+      const idleZ = zones.filter(([zid]) => states[zid]?.state === "idle");
+      if (idleZ.length) {
+        const comp = composeOverlay(this.canvas, this.cam.zones, states);
+        for (const [zid, z] of idleZ) {
+          set(R(`crops/${this.id}__${zid}`), { ts: serverTimestamp(), jpg: cropAround(comp, z.eq) }).catch(console.warn);
+        }
+      }
     }
     if (grabbed && t0 - this.lastThumb >= THUMB_MS) {
       this.lastThumb = t0;
@@ -399,6 +415,7 @@ class Runner {
       </div>
       <footer class="tile-foot">
         <span class="tile-status"></span><span class="spacer"></span>
+        <button type="button" class="btn small" data-act="full"></button>
         <button type="button" class="btn small" data-act="repick"></button>
         <button type="button" class="btn small" data-act="zones"></button>
         <button type="button" class="btn small admin-only" data-act="cam"></button>
@@ -409,6 +426,10 @@ class Runner {
     el.querySelector("[data-act=repick]").addEventListener("click", pick);
     el.querySelector("[data-act=site]").addEventListener("click", () => this.openSite());
     el.querySelector("[data-act=zones]").addEventListener("click", () => openZones(this.id));
+    const stage = el.querySelector(".tile-stage");
+    const full = () => { if (document.fullscreenElement) document.exitFullscreen(); else stage.requestFullscreen?.().catch(() => {}); };
+    el.querySelector("[data-act=full]").addEventListener("click", full);
+    el.querySelector(".tile-cv").addEventListener("dblclick", full);
     el.querySelector("[data-act=cam]").addEventListener("click", () => openCam(this.id));
     this.tile = el;
     this.tileCv = el.querySelector(".tile-cv");
@@ -417,6 +438,7 @@ class Runner {
   labelTile() {
     const q = s => this.tile.querySelector(s);
     q("[data-act=zones]").textContent = t("editZones");
+    q("[data-act=full]").textContent = t("bigView");
     q("[data-act=cam]").textContent = t("editCamera");
     const img = this.type() === "image";
     q("[data-act=pick]").textContent = t(img ? "pickImage" : "pickScreen");
@@ -478,6 +500,30 @@ function loadHls() {
     sc.onerror = () => res(null);
     document.head.appendChild(sc);
   });
+}
+
+// 화면 + 박스 표시를 합친 캔버스
+const compCanvas = document.createElement("canvas");
+function composeOverlay(src, zones, states) {
+  compCanvas.width = src.width; compCanvas.height = src.height;
+  const c = compCanvas.getContext("2d");
+  c.drawImage(src, 0, 0);
+  drawOverlay(c, src.width, src.height, zones, states, []);
+  return compCanvas;
+}
+// 박스 주변을 4:3으로 넉넉히 잘라 JPEG로
+const cropCanvas = document.createElement("canvas");
+function cropAround(src, box) {
+  const W = src.width, H = src.height;
+  const bw = box[2] * W, bh = box[3] * H, cx = (box[0] + box[2] / 2) * W, cy = (box[1] + box[3] / 2) * H;
+  let cw = Math.max(bw * 2.2, W * 0.3), ch = Math.max(bh * 2.2, cw * 0.75);
+  cw = Math.max(cw, ch * 4 / 3);
+  cw = Math.min(cw, W); ch = Math.min(ch, H);
+  const x = Math.min(Math.max(0, cx - cw / 2), W - cw), y = Math.min(Math.max(0, cy - ch / 2), H - ch);
+  const sc = Math.min(1, 640 / cw);
+  cropCanvas.width = Math.round(cw * sc); cropCanvas.height = Math.round(ch * sc);
+  cropCanvas.getContext("2d").drawImage(src, x, y, cw, ch, 0, 0, cropCanvas.width, cropCanvas.height);
+  return cropCanvas.toDataURL("image/jpeg", 0.65);
 }
 
 const jpgCanvas = document.createElement("canvas");
@@ -580,6 +626,10 @@ function toast(msg) {
 function bindUi() {
   $("#runBtn").addEventListener("click", () => setRunning(!S.running));
   $("#autoStart").addEventListener("change", e => LS.set("autostart", e.target.checked));
+  const sizeSel = $("#tileSize");
+  sizeSel.value = LS.get("tileSize", "m");
+  $("#tiles").dataset.size = sizeSel.value;
+  sizeSel.addEventListener("change", () => { $("#tiles").dataset.size = sizeSel.value; LS.set("tileSize", sizeSel.value); });
   $("#agentName").addEventListener("change", e => {
     const v = cleanKey(e.target.value);
     e.target.value = v;
@@ -634,6 +684,7 @@ function bindUi() {
   });
 
   bindZoneEditor();
+  bindAlertUi();
 }
 
 function syncSrcFields() {
@@ -801,4 +852,112 @@ function bindZoneEditor() {
   });
   $("#zoneClose").addEventListener("click", () => $("#zoneDlg").close());
   $("#zoneDlg").addEventListener("close", () => { clearInterval(Z.timer); Z.timer = null; });
+}
+
+/* =========================================================
+   LINE 알림: 분석 PC가 30초마다 확인해서, 새로 생긴 비가동 의심 설비를 한 메시지로 묶어 보냄
+   (LINE 공식계정은 "보낸 횟수 × 받는 사람 수"로 계산되므로 묶어서 보냄)
+   ========================================================= */
+const AL = { sent: new Map() };   // key → 마지막 알림 시각
+const ALERT_DEF = { enabled: false, delayMin: 10, repeatMin: 60, resolved: false, quiet: "", langs: ["th", "ko"] };
+
+function minutesOfDay(ts) { const p = tzParts(ts); return +p.hour * 60 + +p.minute; }
+// "12:00-13:00, 00:00-00:30" 형식 (태국 현지 시간)
+function inQuiet(spec, ts) {
+  const m = minutesOfDay(ts);
+  return String(spec || "").split(/[,;\n]+/).some(part => {
+    const r = part.trim().match(/^(\d{1,2}):(\d{2})\s*[-~]\s*(\d{1,2}):(\d{2})$/);
+    if (!r) return false;
+    const a = +r[1] * 60 + +r[2], b = +r[3] * 60 + +r[4];
+    return a <= b ? m >= a && m < b : m >= a || m < b;
+  });
+}
+function langsOf(c) { return (c.langs?.length ? c.langs : ALERT_DEF.langs).filter(l => ["ko", "en", "th"].includes(l)); }
+function head(langs, key, vars) { return langs.map(l => tl(l, key, vars)).join(" / "); }
+
+function buildMessage(c, groups) {
+  const langs = langsOf(c), n = groups.newIdle.length + groups.still.length;
+  const out = [n ? `[KOWOO THAI] ${head(langs, "alertHead", { n })}` : "[KOWOO THAI]"];
+  const line = (it, mark = "") => `${mark}• ${areaLabel(it.area)} ${it.eqId}${it.name ? " " + it.name : ""}  ${it.min} min`;
+  groups.newIdle.forEach(it => out.push(line(it)));
+  if (groups.still.length) { out.push(head(langs, "alertStill")); groups.still.forEach(it => out.push(line(it))); }
+  if (groups.nosig.length) { out.push(head(langs, "alertNosig")); groups.nosig.forEach(it => out.push(`• ${it.name}  ${it.min} min`)); }
+  if (groups.back.length) { out.push(head(langs, "alertBack")); groups.back.forEach(it => out.push(`• ${it.eqId}`)); }
+  out.push(fmtClock(now()) + " (TH)");
+  if (c.roomUrl) out.push(c.roomUrl);
+  return out.join("\n");
+}
+
+async function sendLine(c, text, test = false) {
+  if (!c?.url) throw new Error("no url");
+  // 앱스 스크립트는 다른 사이트 호출 응답을 읽을 수 없으므로 no-cors로 보내고 결과는 LINE에서 확인
+  await fetch(c.url, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify({ key: c.key || "", text }) });
+  push(R("alertLog"), { ts: serverTimestamp(), text, test, agent: S.agent }).catch(() => {});
+}
+
+async function checkAlerts() {
+  const c = { ...ALERT_DEF, ...(S.alertCfg || {}) };
+  if (!S.running || !c.enabled || !c.url) return;
+  const tnow = now(), delay = Math.max(1, +c.delayMin || 10) * 60000, rep = Math.max(0, +c.repeatMin || 0) * 60000;
+  const quiet = inQuiet(c.quiet, tnow);
+  const g = { newIdle: [], still: [], nosig: [], back: [] }, mark = [];
+  for (const r of S.runners.values()) {
+    // 카메라 전체 신호 없음 (화면 미선택, 영상 끊김)
+    const camKey = r.id + "/_cam";
+    const off = !r.online || r.needPick;
+    if (off) r.offSince ||= tnow; else r.offSince = null;
+    if (off && tnow - r.offSince >= delay) {
+      const last = AL.sent.get(camKey);
+      if (!last || (rep && tnow - last >= rep)) { g.nosig.push({ name: r.cam.name, min: Math.round((tnow - r.offSince) / 60000) }); mark.push(camKey); }
+    } else if (!off) AL.sent.delete(camKey);
+
+    for (const [zid, z] of Object.entries(r.cam.zones || {})) {
+      const key = r.id + "/" + zid, st = r.states?.[zid];
+      const it = { eqId: z.eqId || "?", name: z.name || "", area: z.area || r.cam.area || "", min: st?.since ? Math.round((tnow - st.since) / 60000) : 0 };
+      if (st?.state === "idle" && tnow - st.since >= delay) {
+        const last = AL.sent.get(key);
+        if (!last) { g.newIdle.push(it); mark.push(key); }
+        else if (rep && tnow - last >= rep) { g.still.push(it); mark.push(key); }
+      } else if (AL.sent.has(key) && st?.state !== "idle") {
+        if (st?.state === "run" && c.resolved) g.back.push(it);
+        AL.sent.delete(key);
+      }
+    }
+  }
+  if (quiet) return;   // 쉬는 시간: 보내지 않음 (끝난 뒤에도 계속 비가동이면 그때 보냄)
+  if (!g.newIdle.length && !g.still.length && !g.nosig.length && !g.back.length) return;
+  try {
+    await sendLine(c, buildMessage(c, g));
+    mark.forEach(k => AL.sent.set(k, tnow));
+  } catch (e) { console.warn("alert", e); }
+}
+
+function bindAlertUi() {
+  const f = $("#alertForm");
+  $("#alertBtn").addEventListener("click", () => {
+    const c = { ...ALERT_DEF, ...(S.alertCfg || {}) };
+    f.url.value = c.url || ""; f.key.value = c.key || "";
+    f.enabled.checked = !!c.enabled; f.resolved.checked = !!c.resolved;
+    f.delayMin.value = c.delayMin; f.repeatMin.value = c.repeatMin; f.quiet.value = c.quiet || "";
+    f.roomUrl.value = c.roomUrl || (location.protocol === "https:" ? location.href.replace(/analyzer\.html.*$/, "room.html") : "https://appshin.github.io/kowoo-machine-watch/room.html");
+    f.querySelectorAll("[name=langs]").forEach(cb => { cb.checked = langsOf(c).includes(cb.value); });
+    $("#alertDlg").showModal();
+  });
+  const read = () => ({
+    url: f.url.value.trim(), key: f.key.value.trim(), enabled: f.enabled.checked, resolved: f.resolved.checked,
+    delayMin: Math.min(240, Math.max(1, +f.delayMin.value || 10)), repeatMin: Math.min(1440, Math.max(0, +f.repeatMin.value || 0)),
+    quiet: f.quiet.value.trim(), roomUrl: f.roomUrl.value.trim(),
+    langs: [...f.querySelectorAll("[name=langs]:checked")].map(cb => cb.value)
+  });
+  f.addEventListener("submit", async e => {
+    e.preventDefault();
+    try { await set(ALERT(), read()); $("#alertDlg").close(); toast(t("saved")); }
+    catch (err) { console.warn(err); toast(t("saveFail")); }
+  });
+  $("#alertTest").addEventListener("click", async () => {
+    const c = read();
+    if (!c.url) { toast(t("alNeedUrl")); return; }
+    try { await sendLine(c, `[KOWOO THAI] ${head(langsOf(c), "alTestText")}\n${c.roomUrl}`, true); toast(t("alTestSent")); }
+    catch (err) { console.warn(err); toast(t("saveFail")); }
+  });
 }
