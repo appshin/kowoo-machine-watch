@@ -51,7 +51,11 @@ function onReady({ user, role }) {
   setInterval(heartbeat, 10000);
   window.addEventListener("langchange", () => { updateRunBtn(); syncRunners(true); });
   loop();
-  if ($("#autoStart").checked) setRunning(true);
+  // 같은 PC(같은 브라우저)에 분석 화면이 이미 열려 있으면 경고하고 자동 시작하지 않음
+  checkDuplicate().then(dup => {
+    if (dup) { const w = $("#warn"); w.textContent = t("dupTab"); w.hidden = false; }
+    else if ($("#autoStart").checked) setRunning(true);
+  });
 }
 
 /* =========================================================
@@ -559,6 +563,21 @@ async function setRunning(on) {
   }
   updateRunBtn();
   heartbeat();
+}
+// 분석 중에 탭을 닫거나 다른 주소로 이동하면 분석이 멈추므로 확인
+window.addEventListener("beforeunload", e => {
+  if (S.running) { e.preventDefault(); e.returnValue = ""; }
+});
+const bc = "BroadcastChannel" in window ? new BroadcastChannel("kcw-analyzer") : null;
+bc?.addEventListener("message", e => { if (e.data === "who" && S.running) bc.postMessage("running"); });
+function checkDuplicate() {
+  if (!bc) return Promise.resolve(false);
+  return new Promise(res => {
+    const on = e => { if (e.data === "running") { bc.removeEventListener("message", on); res(true); } };
+    bc.addEventListener("message", on);
+    bc.postMessage("who");
+    setTimeout(() => { bc.removeEventListener("message", on); res(false); }, 600);
+  });
 }
 document.addEventListener("visibilitychange", async () => {
   if (S.running && !document.hidden && !S.wake) { try { S.wake = await navigator.wakeLock?.request("screen"); } catch {} }
