@@ -69,3 +69,38 @@ export function diffFractionMasked(a, b, th, mask) {
   for (let i = 0; i < a.length; i++) if (mask[i]) { n++; if (Math.abs(a[i] - b[i]) > th) c++; }
   return n ? c / n : null;
 }
+
+// 화면 지문: 이 카메라 칸에 "원래 그 채널"이 나오고 있는지 확인하는 데 씀
+// 64×36 흑백 → (밝기 32×18 + 윤곽 32×18) 각각 정규화. 두 지문의 내적 = 비슷한 정도(-1~1)
+export function fingerprint(gray, w = 64, h = 36) {
+  const W = w >> 1, H = h >> 1, a = new Float32Array(W * H), g = new Float32Array(W * H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    let s = 0, e = 0;
+    for (let dy = 0; dy < 2; dy++) for (let dx = 0; dx < 2; dx++) {
+      const X = x * 2 + dx, Y = y * 2 + dy, i = Y * w + X;
+      s += gray[i];
+      const r = X + 1 < w ? gray[i + 1] : gray[i], d = Y + 1 < h ? gray[i + w] : gray[i];
+      e += Math.abs(r - gray[i]) + Math.abs(d - gray[i]);
+    }
+    a[y * W + x] = s / 4; g[y * W + x] = e / 4;
+  }
+  const out = new Float32Array(W * H * 2);
+  [a, g].forEach((v, k) => {
+    let m = 0; for (const q of v) m += q; m /= v.length;
+    let n = 0; for (const q of v) n += (q - m) ** 2; n = Math.sqrt(n) || 1;
+    for (let i = 0; i < v.length; i++) out[k * v.length + i] = (v[i] - m) / n * Math.SQRT1_2;
+  });
+  return out;
+}
+export function fpSimilarity(p, q) {
+  if (!p || !q || p.length !== q.length) return null;
+  let s = 0; for (let i = 0; i < p.length; i++) s += p[i] * q[i];
+  return s;
+}
+// 일치하는 동안 기준을 조금씩 따라가게 (해 질 녘 밝기 변화 등)
+export function adaptFingerprint(ref, cur, rate = 0.05) {
+  for (let i = 0; i < ref.length; i++) ref[i] = ref[i] * (1 - rate) + cur[i] * rate;
+  let n = 0; for (const v of ref) n += v * v; n = Math.sqrt(n) || 1;
+  for (let i = 0; i < ref.length; i++) ref[i] /= n;
+  return ref;
+}

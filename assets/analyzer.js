@@ -2,11 +2,11 @@ import {
   authGate, isConfigured, showSetup, R, onValue, get, set, update, push, remove, onDisconnect,
   serverTimestamp, increment, now, SITE, t, applyI18n, bindLangSelects, shiftOf, drawOverlay,
   areaLabel, esc, natCmp, $, COLORS, ALERT, tl, tzParts, fmtClock, nextEqId
-} from "./core.js?v=20261120j";
-import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge } from "./motion.js?v=20261120j";
-import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120j";
+} from "./core.js?v=20261120m";
+import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge, fingerprint, fpSimilarity, adaptFingerprint } from "./motion.js?v=20261120m";
+import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120m";
 
-const DEFAULTS = { analyzeMs: 1000, pixThresh: 22, skipPct: 40, frameMs: 2000, frameW: 960 };
+const DEFAULTS = { analyzeMs: 1000, pixThresh: 22, skipPct: 40, frameMs: 2000, frameW: 960, refMatch: 0.7, unseenMin: 10 };
 const CROP_MS = 5000, ALERT_CHECK_MS = 30000;
 const THUMB_MS = 60000, LIVE_HEARTBEAT_MS = 5000, STATS_FLUSH_MS = 15000;
 
@@ -177,6 +177,7 @@ class Runner {
     this.zs = {}; this.acc = {}; this.states = {};
     this.online = false; this.fail = 0; this.ms = 0; this.watchers = 0;
     this.needPick = false; this.skipped = false; this.prevFull = null;
+    this.observed = true; this.miss = 0; this.unseenSince = null; this.ref = null;
     this.lastLive = 0; this.lastFrame = 0; this.lastThumb = 0; this.lastAcc = 0; this.lastFlush = now();
     this.srcKey = JSON.stringify(cam.src || {});
     this.unwatch = onValue(R(`watch/${id}`), s => { this.watchers = Object.keys(s.val() || {}).length; });
@@ -329,10 +330,45 @@ class Runner {
     if (this.stream) { this.stream.getTracks().forEach(tr => tr.stop()); this.stream = null; }
     if (this.video) { this.video.pause(); this.video.removeAttribute("src"); this.video.srcObject = null; this.video.load(); this.video.remove(); this.video = null; }
   }
+  // ---- 화면 지문: 이 칸에 원래 채널이 나오고 있는지 확인 ----
+  refKey() { return "kcw.ref." + this.id; }
+  resetRef() {
+    this.ref = null; this.observed = true; this.miss = 0; this.unseenSince = null; this.sim = null;
+    try { localStorage.removeItem(this.refKey()); } catch {}
+  }
+  loadRef() {
+    try {
+      const v = JSON.parse(localStorage.getItem(this.refKey()) || "null");
+      if (Array.isArray(v) && v.length) return Float32Array.from(v);
+    } catch {}
+    return null;
+  }
+  saveRef() {
+    try { localStorage.setItem(this.refKey(), JSON.stringify(Array.from(this.ref, v => Math.round(v * 1e4) / 1e4))); } catch {}
+    this.refSavedAt = Date.now();
+  }
+  checkScreen(t0, st) {
+    const g = sampleGray(this.canvas, [0, 0, 1, 1], 64);
+    if (!g || g.w !== 64) { this.observed = true; return; }
+    const fp = fingerprint(g, g.w, g.h);
+    if (!this.ref) this.ref = this.loadRef();
+    if (!this.ref || this.refNow) {        // 처음이면 지금 화면을 이 카메라의 기준으로 저장
+      this.ref = fp; this.refNow = false; this.saveRef();
+    }
+    this.sim = fpSimilarity(fp, this.ref);
+    if (this.sim != null && this.sim >= (+st.refMatch || DEFAULTS.refMatch)) {
+      this.miss = 0; this.unseenSince = null; this.observed = true;
+      adaptFingerprint(this.ref, fp, 0.05);
+      if (Date.now() - (this.refSavedAt || 0) > 60000) this.saveRef();
+    } else {
+      this.miss = (this.miss || 0) + 1;
+      if (this.miss >= 3) { this.observed = false; this.unseenSince ||= t0; }   // 잠깐 가려진 것은 무시
+    }
+  }
   updateCam(cam) {
     this.cam = cam;
     const k = JSON.stringify(cam.src || {});
-    if (k !== this.srcKey) { this.srcKey = k; this.open(); }
+    if (k !== this.srcKey) { this.srcKey = k; this.resetRef(); this.open(); }
     this.tile.querySelector(".tile-name").textContent = cam.name;
   }
   async grab() {
@@ -413,15 +449,25 @@ class Runner {
       const fd = diffFraction(full, this.prevFull, th);
       this.prevFull = full;
       if (fd !== null && fd * 100 >= (+st.skipPct || DEFAULTS.skipPct)) this.skipped = true;
+      this.checkScreen(t0, st);
     }
 
     let changed = wasOnline !== this.online;
     const states = {};
     for (const [zid, z] of zones) {
-      const zs = this.zs[zid] ||= newZoneState(t0);
+      if (!this.zs[zid]) {
+        this.zs[zid] = newZoneState(t0);
+        logState(this, zid, z, null, "wait", 0);   // 감시 시작
+      }
+      const zs = this.zs[zid];
       let ns = zs.state;
       if (S.plan?.[this.id]?.[zid]) { ns = "off"; zs.hist = []; zs.prev = null; zs.ratio = null; }
       else if (!this.online) { ns = "nosig"; zs.hist = []; zs.prev = null; zs.ratio = null; }
+      else if (grabbed && !this.observed) {
+        // 다른 화면(다른 레이아웃·채널)이 떠 있음: 판정을 멈추고 상태 유지. 오래 계속되면 "신호없음"
+        zs.prev = null;
+        if (this.unseenSince && t0 - this.unseenSince >= (+st.unseenMin || DEFAULTS.unseenMin) * 60000) { ns = "nosig"; zs.hist = []; zs.ratio = null; }
+      }
       else if (grabbed) {
         const g = sampleGray(this.canvas, z.eq);
         // 다각형 구역이면 모양 안쪽 화소만 계산 (통로 등 바깥은 무시)
@@ -439,7 +485,8 @@ class Runner {
         } else if (zs.state === "off" || zs.state === "nosig") ns = "wait";
       }
       if (ns !== zs.state) {
-        if (ns === "idle" || zs.state === "idle") {
+        // 모든 상태 변화를 기록 (가동 이력 화면에서 시간대별로 보여 주기 위해)
+        {
           push(R("events"), {
             ts: serverTimestamp(), cam: this.id, zone: zid, eqId: z.eqId || "", name: z.name || "",
             area: z.area || this.cam.area || "", from: zs.state, to: ns, dur: Math.round((t0 - zs.since) / 1000),
@@ -462,16 +509,26 @@ class Runner {
     // 근무조별 누적 시간
     const dt = this.lastAcc ? (t0 - this.lastAcc) / 1000 : 0;
     this.lastAcc = t0;
-    if (dt > 0 && dt < 30) for (const [zid, s] of Object.entries(states)) {
+    if (dt > 0 && dt < 30 && this.observed) for (const [zid, s] of Object.entries(states)) {
       if (s.state !== "run" && s.state !== "idle") continue;
       const a = this.acc[zid] ||= { run: 0, idle: 0 };
       a[s.state] += dt;
     }
     if (t0 - this.lastFlush >= STATS_FLUSH_MS) this.flush();
+    // 근무조가 바뀌면 그 시각의 상태를 이력에 한 번 남김 (긴 시간 변화가 없어도 이력 화면에서 상태를 알 수 있게)
+    const sk = shiftOf(t0); const skKey = sk.date + sk.shift;
+    if (this.shiftKey && this.shiftKey !== skKey) {
+      for (const [zid, zs] of Object.entries(this.zs)) {
+        const z = this.cam.zones?.[zid];
+        if (z) logState(this, zid, z, zs.state, zs.state, Math.round((t0 - zs.since) / 1000));
+      }
+    }
+    this.shiftKey = skKey;
 
     if (changed || t0 - this.lastLive >= LIVE_HEARTBEAT_MS) {
       this.lastLive = t0;
-      set(R(`live/${this.id}`), { ts: serverTimestamp(), online: this.online, agent: S.agent, ms: Math.round(this.ms), zones: states }).catch(console.warn);
+      set(R(`live/${this.id}`), { ts: serverTimestamp(), online: this.online, agent: S.agent, ms: Math.round(this.ms), zones: states,
+        scr: this.observed ? 1 : 0, sim: this.sim == null ? null : Math.round(this.sim * 100) }).catch(console.warn);
     }
     // 원격 영상: 대시보드에서 누군가 보고 있을 때만
     if (grabbed && this.watchers > 0 && t0 - this.lastFrame >= +st.frameMs) {
@@ -510,12 +567,18 @@ class Runner {
   }
   stopped() {
     this.flush();
+    // 분석 중지도 이력에 남김 (중지된 동안을 가동/비가동으로 잘못 보지 않도록)
+    for (const [zid, zs] of Object.entries(this.zs)) {
+      const z = this.cam.zones?.[zid];
+      if (z && zs.state !== "nosig") logState(this, zid, z, zs.state, "nosig", Math.round((now() - zs.since) / 1000), true);
+    }
     for (const zs of Object.values(this.zs)) { zs.hist = []; zs.ratio = null; zs.state = "wait"; zs.since = now(); }
     this.states = {}; this.lastAcc = 0;
     set(R(`live/${this.id}`), { ts: serverTimestamp(), online: false, agent: S.agent, stopped: true }).catch(() => {});
   }
   destroy() {
-    if (S.running) this.stopped();
+    // 카메라가 삭제된 경우에는 상태를 다시 쓰지 않음 (지운 기록이 되살아나지 않도록)
+    if (S.running && S.cams[this.id]) this.stopped();
     this.unwatch(); this.close(); this.tile.remove();
   }
 
@@ -523,7 +586,7 @@ class Runner {
     const el = document.createElement("article");
     el.className = "tile panel";
     el.innerHTML = `
-      <header class="tile-head"><strong class="tile-name"></strong><span class="tile-meta meta"></span></header>
+      <header class="tile-head"><label class="tile-sel"><input type="checkbox" tabindex="-1"></label><strong class="tile-name"></strong><span class="tile-meta meta"></span></header>
       <div class="tile-stage">
         <canvas class="tile-cv" width="640" height="360"></canvas>
         <div class="tile-pick" hidden>
@@ -537,6 +600,7 @@ class Runner {
       <footer class="tile-foot">
         <span class="tile-status"></span><span class="spacer"></span>
         <button type="button" class="btn small" data-act="full"></button>
+        <button type="button" class="btn small admin-only" data-act="ref"></button>
         <button type="button" class="btn small" data-act="repick"></button>
         <button type="button" class="btn small" data-act="zones"></button>
         <button type="button" class="btn small admin-only" data-act="cam"></button>
@@ -550,8 +614,18 @@ class Runner {
     const stage = el.querySelector(".tile-stage");
     const full = () => { if (document.fullscreenElement) document.exitFullscreen(); else stage.requestFullscreen?.().catch(() => {}); };
     el.querySelector("[data-act=full]").addEventListener("click", full);
+    el.querySelector("[data-act=ref]").addEventListener("click", () => {
+      if (!confirm(t("refConfirm"))) return;
+      this.resetRef(); this.refNow = true; toast(t("refSaved"));
+    });
     el.querySelector(".tile-cv").addEventListener("dblclick", full);
     el.querySelector("[data-act=cam]").addEventListener("click", () => openCam(this.id));
+    // 여러 개 선택 모드: 칸 어디를 눌러도 선택/해제
+    el.addEventListener("click", e => {
+      if (!SEL.on) return;
+      e.preventDefault(); e.stopPropagation();
+      toggleSel(this.id);
+    }, true);
     this.tile = el;
     this.tileCv = el.querySelector(".tile-cv");
     this.labelTile();
@@ -560,6 +634,7 @@ class Runner {
     const q = s => this.tile.querySelector(s);
     q("[data-act=zones]").textContent = t("editZones");
     q("[data-act=full]").textContent = t("bigView");
+    q("[data-act=ref]").textContent = t("refSave");
     q("[data-act=cam]").textContent = t("editCamera");
     const img = this.type() === "image";
     q("[data-act=pick]").textContent = t(img ? "pickImage" : "pickScreen");
@@ -581,9 +656,14 @@ class Runner {
     if (screen && this.needPick) { st.textContent = t(this.type() === "image" ? "needImageShort" : "needPickShort"); st.className = "tile-status bad"; }
     else if (!this.canvas.width || !this.online) { st.textContent = t("stOffline"); st.className = "tile-status bad"; }
     else if (analyzing) {
-      st.textContent = `${t("stOnline")}  ${Math.round(this.ms)}ms` + (this.skipped ? `  ${t("skippedNow")}` : "") +
-        (this.watchers ? `  ${t("watching", { n: this.watchers })}` : "");
-      st.className = "tile-status on";
+      if (!this.observed) {
+        st.textContent = t("otherScreen", { s: this.sim == null ? "-" : Math.round(this.sim * 100) });
+        st.className = "tile-status bad";
+      } else {
+        st.textContent = `${t("stOnline")}  ${Math.round(this.ms)}ms` + (this.skipped ? `  ${t("skippedNow")}` : "") +
+          (this.watchers ? `  ${t("watching", { n: this.watchers })}` : "");
+        st.className = "tile-status on";
+      }
     } else { st.textContent = t("stPreview"); st.className = "tile-status"; }
     if (!this.canvas.width) return;
     const cv = this.tileCv;
@@ -606,6 +686,13 @@ function sourceOf(type, cid) {
 }
 const srcW = el => el.videoWidth || el.naturalWidth || el.width;
 const srcH = el => el.videoHeight || el.naturalHeight || el.height;
+
+function logState(r, zid, z, from, to, dur, stop = false) {
+  push(R("events"), {
+    ts: serverTimestamp(), cam: r.id, zone: zid, eqId: z.eqId || "", name: z.name || "",
+    area: z.area || r.cam.area || "", from: from || "", to, dur, ...(stop ? { stop: true } : {})
+  }).catch(console.warn);
+}
 
 function loadImg(url, cors = false) {
   return new Promise((res, rej) => {
@@ -739,6 +826,7 @@ function syncRunners(relabel = false) {
     tiles.appendChild(r.tile);
   }
   tiles.querySelectorAll(".empty-tiles, .other-cams").forEach(e => e.remove());
+  if (typeof SEL !== "undefined" && SEL.on) setTimeout(syncSel, 0);
   if (!mine.length) {
     const p = document.createElement("p");
     p.className = "empty-tiles";
@@ -826,7 +914,9 @@ function bindUi() {
     const v = {
       analyzeMs: +s.analyzeMs.value || DEFAULTS.analyzeMs, pixThresh: +s.pixThresh.value || DEFAULTS.pixThresh,
       skipPct: +s.skipPct.value || DEFAULTS.skipPct, frameMs: +s.frameMs.value || DEFAULTS.frameMs,
-      frameW: +s.frameW.value || DEFAULTS.frameW
+      frameW: +s.frameW.value || DEFAULTS.frameW,
+      refMatch: Math.min(0.95, Math.max(0.3, +s.refMatch.value || DEFAULTS.refMatch)),
+      unseenMin: Math.min(240, Math.max(1, +s.unseenMin.value || DEFAULTS.unseenMin))
     };
     try { await set(R("config/settings"), v); $("#setDlg").close(); toast(t("saved")); }
     catch (err) { console.warn(err); toast(t("saveFail")); }
@@ -835,6 +925,7 @@ function bindUi() {
   bindZoneEditor();
   bindAlertUi();
   bindCropTools();
+  bindSelection();
 }
 
 function syncSrcFields() {
@@ -881,6 +972,7 @@ function openSettings() {
   const s = $("#setForm"), v = S.settings;
   s.analyzeMs.value = v.analyzeMs; s.pixThresh.value = v.pixThresh; s.skipPct.value = v.skipPct;
   s.frameMs.value = v.frameMs; s.frameW.value = v.frameW;
+  s.refMatch.value = v.refMatch; s.unseenMin.value = v.unseenMin;
   $("#setDlg").showModal();
 }
 
@@ -1217,6 +1309,50 @@ function bindCropTools() {
       await update(R("config/cameras"), upd);
       $("#cropDlg").close();
       toast(t("splitDone", { n: rows * cols }));
+    } catch (err) { console.warn(err); toast(t("saveFail")); }
+  });
+}
+
+/* =========================================================
+   여러 개 선택해서 한 번에 삭제
+   ========================================================= */
+const SEL = { on: false, ids: new Set() };
+function toggleSel(id) {
+  if (SEL.ids.has(id)) SEL.ids.delete(id); else SEL.ids.add(id);
+  syncSel();
+}
+function syncSel() {
+  document.body.classList.toggle("selecting", SEL.on);
+  $("#selBar").hidden = !SEL.on;
+  for (const id of [...SEL.ids]) if (!S.cams[id]) SEL.ids.delete(id);
+  for (const [id, r] of S.runners) {
+    const on = SEL.ids.has(id);
+    r.tile.classList.toggle("selected", on);
+    r.tile.querySelector(".tile-sel input").checked = on;
+  }
+  $("#selCount").textContent = t("selCount", { n: SEL.ids.size });
+  $("#selDelete").disabled = !SEL.ids.size;
+}
+function bindSelection() {
+  $("#selectBtn").addEventListener("click", () => { SEL.on = !SEL.on; SEL.ids.clear(); syncSel(); });
+  $("#selCancel").addEventListener("click", () => { SEL.on = false; SEL.ids.clear(); syncSel(); });
+  $("#selAll").addEventListener("click", () => { for (const id of S.runners.keys()) SEL.ids.add(id); syncSel(); });
+  $("#selNone").addEventListener("click", () => { SEL.ids.clear(); syncSel(); });
+  $("#selDelete").addEventListener("click", async () => {
+    const ids = [...SEL.ids];
+    if (!ids.length) return;
+    const names = ids.map(id => S.cams[id]?.name || id);
+    if (!confirm(t("selConfirm", { n: ids.length, names: names.join(", ") }))) return;
+    const upd = {};
+    for (const id of ids) {
+      upd[`config/cameras/${id}`] = null;
+      for (const k of ["live", "frames", "thumbs", "plan"]) upd[`${k}/${id}`] = null;
+      for (const zid of Object.keys(S.cams[id]?.zones || {})) upd[`crops/${id}__${zid}`] = null;
+    }
+    try {
+      await update(R(), upd);
+      SEL.on = false; SEL.ids.clear(); syncSel();
+      toast(t("selDone", { n: ids.length }));
     } catch (err) { console.warn(err); toast(t("saveFail")); }
   });
 }

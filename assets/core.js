@@ -2,13 +2,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/fireba
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getDatabase, ref, onValue, get, set, update, push, remove, onDisconnect,
-  serverTimestamp, increment, query, orderByChild, limitToLast
+  serverTimestamp, increment, query, orderByChild, limitToLast, startAt, endAt
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig, SITE } from "./firebase-config.js?v=20261120j";
+import { firebaseConfig, SITE } from "./firebase-config.js?v=20261120m";
 
-export { SITE, onValue, get, set, update, push, remove, onDisconnect, serverTimestamp, increment, query, orderByChild, limitToLast };
+export { SITE, onValue, get, set, update, push, remove, onDisconnect, serverTimestamp, increment, query, orderByChild, limitToLast, startAt, endAt };
 
-export const VERSION = "20261120j";
+export const VERSION = "20261120m";
 window.__KCW_VERSION = VERSION;
 
 /* ---------- Firebase ---------- */
@@ -169,6 +169,13 @@ const DICT = {
     blkTabHelp: "분석은 처음 연 탭에서 계속 돌아가고 있으니 이 탭은 닫으세요. 상태는 대시보드와 종합상황실에서 보면 됩니다.",
     blkRemoteHelp: "감시 상태는 대시보드·종합상황실에서 보고, 감시 박스 수정은 대시보드 카메라 패널의 [감시 박스 편집]에서 하면 됩니다.",
     blkForce: "그래도 여기서 분석 실행", blkForceConfirm: "같은 카메라를 두 곳에서 분석하면 기록이 겹칩니다. 기존 분석 PC가 꺼졌거나 이 컴퓨터로 옮기는 경우에만 실행하세요. 계속할까요?",
+    selMode: "여러 개 선택", selAll: "모두 선택", selNone: "선택 해제", selDelete: "선택한 카메라 삭제", selCount: "{n}개 선택됨 (칸을 눌러 선택)", selConfirm: "카메라 {n}개와 그 안의 감시 박스를 모두 삭제할까요?\n{names}", selDone: "카메라 {n}개를 삭제했습니다.",
+    otherScreen: "다른 화면이 떠 있음 (기준과 일치 {s}%) - 판정 멈춤", refSave: "기준 화면 다시 저장", refConfirm: "지금 이 칸에 보이는 화면을 이 카메라의 기준으로 저장할까요? CCTV 프로그램에 원래 채널이 나오고 있을 때만 누르세요.", refSaved: "다음 화면을 기준으로 저장합니다.",
+    refMatch: "원래 채널 확인 기준 (0.3~0.95, 기본 0.7)", unseenMin: "다른 화면이 이 시간(분) 넘게 계속되면 신호없음",
+    openHistory: "가동 이력", histTitle: "코우타이 가동 이력", histDate: "날짜 (주간 시작일)", histRange: "범위", histAll: "하루 전체 (주간+야간)", histAllAreas: "전체 구역",
+    histCsv: "엑셀(CSV) 내려받기", histHint: "설비 줄을 누르면 몇 시부터 몇 시까지 가동·비가동이었는지 목록이 나옵니다. 막대에 마우스를 올리면 시간이 보입니다.",
+    histLoading: "기록을 불러오는 중…", histPeriod: "기간", histNone: "기록 없음", histDeleted: "(삭제된 카메라)",
+    histFrom: "시작", histTo: "끝", histState: "상태", histLen: "시간", histMinutes: "분",
     srcScreen: "CCTV 프로그램 화면 (권장)", screenHint: "CCTV 화면 선택은 PC에서 한 번만 하면 모든 카메라가 함께 씁니다. 분할 화면이면 아래 [영역 지정]으로 이 카메라가 쓸 칸을 고르세요. 저장 후 카메라 칸의 [CCTV 화면 선택]을 눌러 CCTV 프로그램 창을 고르세요. CCTV 창은 최소화하지 말고 분할 화면을 고정해 두세요.",
     pickScreen: "CCTV 화면 선택", repickScreen: "화면 다시 선택", needPick: "CCTV 프로그램 창을 선택해야 분석할 수 있습니다.", needPickShort: "화면 선택 필요",
     skippedNow: "화면 전체 변화로 이번 회차 제외",
@@ -254,6 +261,13 @@ const DICT = {
     blkTabHelp: "Analysis keeps running in the tab you opened first, so close this tab. Use the dashboard and situation room to watch status.",
     blkRemoteHelp: "Watch status on the dashboard or situation room, and edit watch boxes with [Edit watch boxes] in the dashboard camera panel.",
     blkForce: "Run analysis here anyway", blkForceConfirm: "Analyzing the same cameras in two places duplicates records. Only continue if the old analysis PC is off or you are moving it here. Continue?",
+    selMode: "Select multiple", selAll: "Select all", selNone: "Clear", selDelete: "Delete selected cameras", selCount: "{n} selected (click tiles to select)", selConfirm: "Delete {n} cameras and all their watch boxes?\n{names}", selDone: "Deleted {n} cameras.",
+    otherScreen: "Another screen is shown (match {s}%) - judging paused", refSave: "Save reference again", refConfirm: "Save what this tile shows now as this camera's reference? Only do this while the CCTV program shows the correct channel.", refSaved: "The next frame will be saved as the reference.",
+    refMatch: "Correct-channel match threshold (0.3–0.95, default 0.7)", unseenMin: "No signal after another screen for (min)",
+    openHistory: "History", histTitle: "KOWOO Thai run history", histDate: "Date (day shift start)", histRange: "Range", histAll: "Whole day (day + night)", histAllAreas: "All areas",
+    histCsv: "Download CSV (Excel)", histHint: "Click a machine row to list when it was running or idle. Hover over a bar to see the times.",
+    histLoading: "Loading records…", histPeriod: "Period", histNone: "No record", histDeleted: "(deleted camera)",
+    histFrom: "From", histTo: "To", histState: "State", histLen: "Length", histMinutes: "Minutes",
     srcScreen: "CCTV program screen (recommended)", screenHint: "After saving, press [Choose CCTV screen] on the camera tile and pick the CCTV program window. Do not minimize it, and keep the split layout fixed.",
     pickScreen: "Choose CCTV screen", repickScreen: "Choose again", needPick: "Choose the CCTV program window to start analysis.", needPickShort: "Choose a screen",
     skippedNow: "whole screen changed, sample skipped",
@@ -339,6 +353,13 @@ const DICT = {
     blkTabHelp: "การวิเคราะห์ยังทำงานในแท็บแรก กรุณาปิดแท็บนี้ ดูสถานะได้ที่แดชบอร์ดและห้องควบคุม",
     blkRemoteHelp: "ดูสถานะที่แดชบอร์ดหรือห้องควบคุม และแก้ไขกรอบตรวจได้ที่ [แก้ไขกรอบตรวจ] ในแดชบอร์ด",
     blkForce: "วิเคราะห์ที่นี่", blkForceConfirm: "การวิเคราะห์กล้องเดียวกันสองที่จะทำให้บันทึกซ้ำ ทำต่อเฉพาะเมื่อ PC เดิมปิดอยู่หรือย้ายมาเครื่องนี้ ต้องการทำต่อหรือไม่?",
+    selMode: "เลือกหลายรายการ", selAll: "เลือกทั้งหมด", selNone: "ล้างการเลือก", selDelete: "ลบกล้องที่เลือก", selCount: "เลือก {n} รายการ (คลิกที่ช่องเพื่อเลือก)", selConfirm: "ลบกล้อง {n} ตัวและกรอบตรวจทั้งหมดหรือไม่?\n{names}", selDone: "ลบกล้อง {n} ตัวแล้ว",
+    otherScreen: "แสดงหน้าจออื่นอยู่ (ตรงกัน {s}%) - หยุดตัดสิน", refSave: "บันทึกภาพอ้างอิงใหม่", refConfirm: "บันทึกภาพที่ช่องนี้แสดงตอนนี้เป็นภาพอ้างอิงของกล้องนี้หรือไม่? กดเฉพาะเมื่อโปรแกรม CCTV แสดงช่องที่ถูกต้อง", refSaved: "จะบันทึกภาพถัดไปเป็นภาพอ้างอิง",
+    refMatch: "เกณฑ์ตรวจช่องที่ถูกต้อง (0.3–0.95 ค่าเริ่มต้น 0.7)", unseenMin: "ไม่มีสัญญาณเมื่อแสดงหน้าจออื่นเกิน (นาที)",
+    openHistory: "ประวัติการเดินเครื่อง", histTitle: "ประวัติการเดินเครื่อง KOWOO Thai", histDate: "วันที่ (วันเริ่มกะกลางวัน)", histRange: "ช่วงเวลา", histAll: "ทั้งวัน (กลางวัน+กลางคืน)", histAllAreas: "ทุกพื้นที่",
+    histCsv: "ดาวน์โหลด CSV (Excel)", histHint: "คลิกแถวเครื่องจักรเพื่อดูช่วงเวลาที่เดินหรือหยุด วางเมาส์บนแถบเพื่อดูเวลา",
+    histLoading: "กำลังโหลดข้อมูล…", histPeriod: "ช่วงเวลา", histNone: "ไม่มีข้อมูล", histDeleted: "(กล้องที่ลบแล้ว)",
+    histFrom: "เริ่ม", histTo: "สิ้นสุด", histState: "สถานะ", histLen: "ระยะเวลา", histMinutes: "นาที",
     srcScreen: "หน้าจอโปรแกรม CCTV (แนะนำ)", screenHint: "บันทึกแล้วกด [เลือกหน้าจอ CCTV] ที่ช่องกล้อง แล้วเลือกหน้าต่างโปรแกรม CCTV อย่าย่อหน้าต่าง และอย่าเปลี่ยนรูปแบบการแบ่งจอ",
     pickScreen: "เลือกหน้าจอ CCTV", repickScreen: "เลือกใหม่", needPick: "ต้องเลือกหน้าต่างโปรแกรม CCTV ก่อนจึงจะวิเคราะห์ได้", needPickShort: "ต้องเลือกหน้าจอ",
     skippedNow: "ทั้งจอเปลี่ยน ข้ามรอบนี้",
@@ -463,6 +484,14 @@ export function fmtStamp(ts) {
   return (ymd(p) === ymd(n) ? "" : `${p.month}/${p.day} `) + `${p.hour}:${p.minute}`;
 }
 const pad = n => String(n).padStart(2, "0");
+// 공장 현지 날짜·시각("2026-11-20", 8) → 실제 시각(ms)
+export function siteEpoch(dateStr, hour, tz = SITE.timezone) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const guess = Date.UTC(y, m - 1, d, hour);
+  const p = tzParts(guess, tz);
+  const shown = Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute);
+  return guess - (shown - guess);
+}
 export function fmtDur(sec) {
   sec = Math.max(0, Math.floor(sec || 0));
   const h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60), s = sec % 60;

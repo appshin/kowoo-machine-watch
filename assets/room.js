@@ -2,7 +2,7 @@ import {
   authGate, isConfigured, showSetup, R, onValue, set, remove, onDisconnect, serverTimestamp,
   now, SITE, t, applyI18n, bindLangSelects, fmtClock, fmtDur, areaLabel, stateLabel, esc, $,
   buildItems, camFreshOf, beep
-} from "./core.js?v=20261120j";
+} from "./core.js?v=20261120m";
 
 // 종합상황실: 비가동 의심 설비만 크게 모아 보여 줌 (사무실 벽 모니터용)
 const S = { user: null, role: null, cams: {}, live: {}, plan: {}, crops: {}, thumbs: {}, sound: false, prevIdle: null, watchRef: null };

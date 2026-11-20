@@ -2,8 +2,8 @@ import {
   authGate, isConfigured, showSetup, R, onValue, set, remove, onDisconnect, serverTimestamp,
   query, orderByChild, limitToLast, now, SITE, t, applyI18n, bindLangSelects, shiftOf, fmtClock, fmtStamp,
   fmtDur, fmtHM, drawOverlay, areaLabel, stateLabel, esc, natCmp, $
-} from "./core.js?v=20261120j";
-import { initRemoteZones, openRemoteZones, refreshRemoteZones } from "./remote-zones.js?v=20261120j";
+} from "./core.js?v=20261120m";
+import { initRemoteZones, openRemoteZones, refreshRemoteZones } from "./remote-zones.js?v=20261120m";
 
 const STALE_MS = 30000;        // 분석 PC 신호가 30초 넘게 없으면 '신호없음'
 const S = {
@@ -30,10 +30,10 @@ function onReady({ user, role }) {
   onValue(R("live"), s => { S.live = s.val() || {}; renderAll(); checkAlerts(); });
   onValue(R("plan"), s => { S.plan = s.val() || {}; renderAll(); checkAlerts(); });
   onValue(R("thumbs"), s => { S.thumbs = s.val() || {}; renderTabs(items()); });
-  onValue(query(R("events"), orderByChild("ts"), limitToLast(80)), s => {
+  onValue(query(R("events"), orderByChild("ts"), limitToLast(400)), s => {
     const a = [];
     s.forEach(c => { a.push(c.val()); });
-    S.events = a.reverse();
+    S.events = a.reverse().filter(e => e.to === "idle" || e.from === "idle").slice(0, 80);
     renderEvents();
   });
   setStatKey(shiftOf(now()));
