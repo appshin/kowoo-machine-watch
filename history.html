@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="app-version" content="20261120m">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KOWOO Thai 가동 이력</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='3' width='9' height='4' fill='%231E8449'/%3E%3Crect x='10' y='3' width='5' height='4' fill='%23D2201A'/%3E%3Crect x='1' y='9' width='4' height='4' fill='%23D2201A'/%3E%3Crect x='5' y='9' width='10' height='4' fill='%231E8449'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/style.css?v=20261120m">
+</head>
+<body class="history">
+<div id="setupMsg" class="setup" hidden></div>
+
+<section id="login" class="login" hidden>
+  <form class="login-box">
+    <div class="brand-row"><span class="brand-mark"></span><strong data-i18n="histTitle"></strong></div>
+    <label><span data-i18n="email"></span><input name="email" type="email" autocomplete="username" required></label>
+    <label><span data-i18n="password"></span><input name="password" type="password" autocomplete="current-password" required></label>
+    <button type="submit" class="btn primary" data-i18n="login"></button>
+    <p class="login-msg" role="alert"></p>
+    <select class="lang-select" aria-label="Language">
+      <option value="ko">한국어</option><option value="en">English</option><option value="th">ไทย</option>
+    </select>
+  </form>
+</section>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark"></span><span data-i18n="histTitle"></span></div>
+    <a class="top-link" href="index.html" data-i18n="backDash"></a>
+    <a class="top-link" href="room.html" target="kcw_room" data-i18n="openRoom"></a>
+    <select class="lang-select" aria-label="Language">
+      <option value="ko">한국어</option><option value="en">English</option><option value="th">ไทย</option>
+    </select>
+    <button type="button" data-action="logout" data-i18n="logout"></button>
+  </header>
+
+  <section class="toolbar panel hist-tools">
+    <label class="field"><span data-i18n="histDate"></span><input type="date" id="hDate"></label>
+    <label class="field"><span data-i18n="histRange"></span>
+      <select id="hRange">
+        <option value="all" data-i18n="histAll"></option>
+        <option value="D" data-i18n="day"></option>
+        <option value="N" data-i18n="night"></option>
+      </select>
+    </label>
+    <label class="field"><span data-i18n="camArea"></span><select id="hArea"></select></label>
+    <button type="button" id="hPrev" class="btn" aria-label="prev">◀</button>
+    <button type="button" id="hNext" class="btn" aria-label="next">▶</button>
+    <span class="spacer"></span>
+    <button type="button" id="hCsv" class="btn" data-i18n="histCsv"></button>
+  </section>
+
+  <section class="panel hist-sum">
+    <div id="hSummary" class="hist-summary"></div>
+    <div id="hLegend" class="tally"></div>
+  </section>
+
+  <section class="panel hist-panel">
+    <p class="hint hist-hint" data-i18n="histHint"></p>
+    <div id="hChart" class="hist-chart"></div>
+  </section>
+</div>
+
+<script>
+/* 화면 파일과 기능 파일(assets)이 서로 다른 업데이트면 경고 */
+setTimeout(function () {
+  var hv = document.querySelector('meta[name="app-version"]').content;
+  if (window.__KCW_VERSION === hv) return;
+  var el = document.getElementById("setupMsg");
+  el.textContent = "업데이트가 일부만 반영됐습니다. GitHub의 assets 폴더 안으로 들어가 새 파일들을 다시 올린 뒤 Ctrl+F5를 누르세요. / The update is only partly applied: upload the files inside the assets folder again, then press Ctrl+F5. (" + hv + " / " + (window.__KCW_VERSION || "old") + ")";
+  el.hidden = false;
+}, 4000);
+</script>
+<script type="module" src="assets/history.js?v=20261120m"></script>
+</body>
+</html>

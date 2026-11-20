@@ -2,14 +2,14 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="app-version" content="20261120j">
+<meta name="app-version" content="20261120m">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KOWOO Thai 분석 PC</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect x='1' y='3' width='14' height='10' rx='2' fill='%2317202B'/%3E%3Ccircle cx='8' cy='8' r='3' fill='%231FA5C4'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=20261120j">
+<link rel="stylesheet" href="assets/style.css?v=20261120m">
 </head>
 <body>
 <div id="setupMsg" class="setup" hidden></div>
@@ -32,6 +32,7 @@
     <div class="brand"><span class="brand-mark" id="brandMark"></span><span data-i18n="analyzerTitle"></span></div>
     <a class="top-link" href="index.html" target="kcw_dash" rel="noopener" data-i18n="backDash"></a>
     <a class="top-link" href="room.html" target="kcw_room" rel="noopener" data-i18n="openRoom"></a>
+    <a class="top-link" href="history.html" target="kcw_hist" rel="noopener" data-i18n="openHistory"></a>
     <select class="lang-select" aria-label="Language">
       <option value="ko">한국어</option><option value="en">English</option><option value="th">ไทย</option>
     </select>
@@ -54,6 +55,7 @@
     </label>
     <span id="engineStatus" class="meta"></span>
     <span class="spacer"></span>
+    <button id="selectBtn" type="button" class="btn admin-only" data-i18n="selMode"></button>
     <button id="splitBtn" type="button" class="btn admin-only" data-i18n="splitTool"></button>
     <button id="addCamBtn" type="button" class="btn admin-only" data-i18n="addCamera"></button>
     <button id="settingsBtn" type="button" class="btn admin-only" data-i18n="settings"></button>
@@ -61,6 +63,14 @@
   </section>
   <p class="hint" style="margin:8px 20px 0" data-i18n="agentHint"></p>
 
+  <div id="selBar" class="sel-bar" hidden>
+    <b id="selCount"></b>
+    <button type="button" id="selAll" class="btn small" data-i18n="selAll"></button>
+    <button type="button" id="selNone" class="btn small" data-i18n="selNone"></button>
+    <span class="spacer"></span>
+    <button type="button" id="selDelete" class="btn danger" data-i18n="selDelete"></button>
+    <button type="button" id="selCancel" class="btn" data-i18n="cancel"></button>
+  </div>
   <main id="tiles" class="tiles"></main>
 </div>
 
@@ -150,6 +160,8 @@
     <label class="field"><span data-i18n="skipPct"></span><input name="skipPct" type="number" min="10" max="100" step="5"></label>
     <label class="field"><span data-i18n="frameMs"></span><input name="frameMs" type="number" min="1000" max="10000" step="500"></label>
     <label class="field"><span data-i18n="frameW"></span><input name="frameW" type="number" min="480" max="1280" step="80"></label>
+    <label class="field"><span data-i18n="refMatch"></span><input name="refMatch" type="number" min="0.3" max="0.95" step="0.05"></label>
+    <label class="field"><span data-i18n="unseenMin"></span><input name="unseenMin" type="number" min="1" max="240" step="1"></label>
     <div class="row">
       <button type="submit" class="btn primary" data-i18n="save"></button>
       <button type="button" class="btn" data-close data-i18n="cancel"></button>
@@ -219,6 +231,6 @@ setTimeout(function () {
   el.hidden = false;
 }, 4000);
 </script>
-<script type="module" src="assets/analyzer.js?v=20261120j"></script>
+<script type="module" src="assets/analyzer.js?v=20261120m"></script>
 </body>
 </html>
