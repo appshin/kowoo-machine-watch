@@ -2,8 +2,8 @@ import {
   authGate, isConfigured, showSetup, R, onValue, set, remove, onDisconnect, serverTimestamp,
   query, orderByChild, limitToLast, now, SITE, t, applyI18n, bindLangSelects, shiftOf, fmtClock, fmtStamp,
   fmtDur, fmtHM, drawOverlay, areaLabel, stateLabel, esc, natCmp, $
-} from "./core.js";
-import { initRemoteZones, openRemoteZones, refreshRemoteZones } from "./remote-zones.js";
+} from "./core.js?v=20261120d";
+import { initRemoteZones, openRemoteZones, refreshRemoteZones } from "./remote-zones.js?v=20261120d";
 
 const STALE_MS = 30000;        // 분석 PC 신호가 30초 넘게 없으면 '신호없음'
 const S = {

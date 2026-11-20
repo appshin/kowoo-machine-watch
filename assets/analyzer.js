@@ -2,9 +2,9 @@ import {
   authGate, isConfigured, showSetup, R, onValue, set, update, push, remove, onDisconnect,
   serverTimestamp, increment, now, SITE, t, applyI18n, bindLangSelects, shiftOf, drawOverlay,
   areaLabel, esc, natCmp, $, COLORS, ALERT, tl, tzParts, fmtClock
-} from "./core.js";
-import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge } from "./motion.js";
-import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js";
+} from "./core.js?v=20261120d";
+import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge } from "./motion.js?v=20261120d";
+import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120d";
 
 const DEFAULTS = { analyzeMs: 1000, pixThresh: 22, skipPct: 40, frameMs: 2000, frameW: 960 };
 const CROP_MS = 5000, ALERT_CHECK_MS = 30000;
@@ -1059,13 +1059,22 @@ function syncCropLabel() {
   const f = $("#camForm");
   $("#cropState").textContent = f.dataset.crop ? t("cropSet") : t("cropAll");
 }
-function openCropDlg(mode) {
+async function openCropDlg(mode, retried = false) {
   const f = $("#camForm");
   CR.mode = mode;
   CR.srcType = mode === "split" ? "screen" : f.type.value;
   CR.cid = mode === "split" ? null : f.dataset.id || null;
   const src = sourceOf(CR.srcType, CR.cid);
-  if (!src) { toast(t(CR.srcType === "screen" ? "cropNeedScreen" : "cropNeedSource")); if (CR.srcType === "screen") pickScreen(true); return; }
+  if (!src) {
+    // CCTV 화면이 아직 선택되지 않았으면 여기서 바로 선택하고, 영상이 들어오면 창을 연다
+    if (CR.srcType === "screen" && !retried) {
+      await pickScreen(true);
+      for (let i = 0; i < 30 && !(SCR.video && SCR.video.videoWidth); i++) await new Promise(r => setTimeout(r, 100));
+      if (SCR.video && SCR.video.videoWidth) return openCropDlg(mode, true);
+    }
+    toast(t(CR.srcType === "screen" ? "cropNeedScreen" : "cropNeedSource"));
+    return;
+  }
   CR.rect = mode === "crop" && f.dataset.crop ? JSON.parse(f.dataset.crop) : null;
   $("#cropTitle").textContent = t(mode === "split" ? "splitTool" : "cropLabel");
   $("#cropHelp").textContent = t(mode === "split" ? "splitHelp" : "cropHelp");

@@ -4,9 +4,12 @@ import {
   getDatabase, ref, onValue, get, set, update, push, remove, onDisconnect,
   serverTimestamp, increment, query, orderByChild, limitToLast
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig, SITE } from "./firebase-config.js";
+import { firebaseConfig, SITE } from "./firebase-config.js?v=20261120d";
 
 export { SITE, onValue, get, set, update, push, remove, onDisconnect, serverTimestamp, increment, query, orderByChild, limitToLast };
+
+export const VERSION = "20261120d";
+window.__KCW_VERSION = VERSION;
 
 /* ---------- Firebase ---------- */
 export const isConfigured = () => !!firebaseConfig.apiKey && !firebaseConfig.apiKey.startsWith("YOUR");
@@ -141,6 +144,7 @@ const DICT = {
     splitTool: "분할 화면 나누기", splitHelp: "CCTV 프로그램의 영상 칸 전체(바깥 테두리)를 드래그하고 몇 줄·몇 칸인지 고르면, 칸마다 카메라가 하나씩 만들어집니다. 필요 없는 칸(실외, 채널 없음)은 나중에 지우세요. CCTV 프로그램의 분할 배치와 창 크기는 바꾸지 마세요.",
     splitRows: "줄 수", splitCols: "칸 수", splitPrefix: "카메라 이름 앞부분", splitStart: "시작 번호", splitCreate: "카메라 {n}개 만들기", splitDone: "카메라 {n}개를 만들었습니다.",
     modeRect: "사각형으로 그리기", modePoly: "점 찍어 그리기", shapeHint: "사각형을 그린 뒤 모서리 점을 끌어 모양을 맞추세요. 점 찍기는 첫 점을 다시 누르거나 더블클릭하면 닫힙니다. 선 위 더블클릭: 점 추가, 점 더블클릭: 점 삭제. 통로는 구역 밖에 두세요.",
+    versionMismatch: "업데이트가 일부만 반영됐습니다 (화면 파일 {h} / 기능 파일 {j}). GitHub의 assets 폴더 안으로 들어가 새 파일들을 다시 올린 뒤 Ctrl+F5를 누르세요.",
     srcScreen: "CCTV 프로그램 화면 (권장)", screenHint: "CCTV 화면 선택은 PC에서 한 번만 하면 모든 카메라가 함께 씁니다. 분할 화면이면 아래 [영역 지정]으로 이 카메라가 쓸 칸을 고르세요. 저장 후 카메라 칸의 [CCTV 화면 선택]을 눌러 CCTV 프로그램 창을 고르세요. CCTV 창은 최소화하지 말고 분할 화면을 고정해 두세요.",
     pickScreen: "CCTV 화면 선택", repickScreen: "화면 다시 선택", needPick: "CCTV 프로그램 창을 선택해야 분석할 수 있습니다.", needPickShort: "화면 선택 필요",
     skippedNow: "화면 전체 변화로 이번 회차 제외",
@@ -216,6 +220,7 @@ const DICT = {
     splitTool: "Split CCTV grid", splitHelp: "Drag around the whole video grid of the CCTV program and set rows and columns; one camera is created per tile. Delete tiles you don't need later. Do not change the CCTV program layout or window size.",
     splitRows: "Rows", splitCols: "Columns", splitPrefix: "Camera name prefix", splitStart: "Start number", splitCreate: "Create {n} cameras", splitDone: "Created {n} cameras.",
     modeRect: "Draw rectangle", modePoly: "Draw by points", shapeHint: "Draw a rectangle, then drag its corner points to fit. In point mode, click the first point again or double-click to close. Double-click a line to add a point, a point to remove it. Keep aisles outside the area.",
+    versionMismatch: "The update is only partly applied (page {h} / scripts {j}). Upload the new files inside the assets folder on GitHub again, then press Ctrl+F5.",
     srcScreen: "CCTV program screen (recommended)", screenHint: "After saving, press [Choose CCTV screen] on the camera tile and pick the CCTV program window. Do not minimize it, and keep the split layout fixed.",
     pickScreen: "Choose CCTV screen", repickScreen: "Choose again", needPick: "Choose the CCTV program window to start analysis.", needPickShort: "Choose a screen",
     skippedNow: "whole screen changed, sample skipped",
@@ -291,6 +296,7 @@ const DICT = {
     splitTool: "แบ่งจอ CCTV", splitHelp: "ลากรอบพื้นที่วิดีโอทั้งหมดของโปรแกรม CCTV แล้วกำหนดจำนวนแถวและคอลัมน์ ระบบจะสร้างกล้องหนึ่งตัวต่อหนึ่งช่อง ช่องที่ไม่ใช้ลบภายหลังได้ อย่าเปลี่ยนรูปแบบการแบ่งจอหรือขนาดหน้าต่าง",
     splitRows: "จำนวนแถว", splitCols: "จำนวนคอลัมน์", splitPrefix: "ชื่อกล้องขึ้นต้น", splitStart: "หมายเลขเริ่มต้น", splitCreate: "สร้างกล้อง {n} ตัว", splitDone: "สร้างกล้อง {n} ตัวแล้ว",
     modeRect: "วาดสี่เหลี่ยม", modePoly: "วาดด้วยจุด", shapeHint: "วาดสี่เหลี่ยมแล้วลากจุดมุมให้พอดี โหมดจุด: คลิกจุดแรกอีกครั้งหรือดับเบิลคลิกเพื่อปิด ดับเบิลคลิกบนเส้นเพื่อเพิ่มจุด ดับเบิลคลิกที่จุดเพื่อลบ ให้ทางเดินอยู่นอกพื้นที่",
+    versionMismatch: "อัปเดตเพียงบางส่วน (หน้า {h} / สคริปต์ {j}) กรุณาอัปโหลดไฟล์ใหม่ในโฟลเดอร์ assets บน GitHub อีกครั้ง แล้วกด Ctrl+F5",
     srcScreen: "หน้าจอโปรแกรม CCTV (แนะนำ)", screenHint: "บันทึกแล้วกด [เลือกหน้าจอ CCTV] ที่ช่องกล้อง แล้วเลือกหน้าต่างโปรแกรม CCTV อย่าย่อหน้าต่าง และอย่าเปลี่ยนรูปแบบการแบ่งจอ",
     pickScreen: "เลือกหน้าจอ CCTV", repickScreen: "เลือกใหม่", needPick: "ต้องเลือกหน้าต่างโปรแกรม CCTV ก่อนจึงจะวิเคราะห์ได้", needPickShort: "ต้องเลือกหน้าจอ",
     skippedNow: "ทั้งจอเปลี่ยน ข้ามรอบนี้",
@@ -317,6 +323,15 @@ export function t(k, vars) {
   if (vars) for (const [a, b] of Object.entries(vars)) s = s.replaceAll(`{${a}}`, b);
   return s;
 }
+function versionCheck() {
+  const hv = document.querySelector('meta[name="app-version"]')?.content;
+  if (hv === VERSION) return;
+  const el = document.getElementById("setupMsg");
+  if (!el) return;
+  el.textContent = t("versionMismatch", { h: hv || "-", j: VERSION });
+  el.hidden = false;
+}
+setTimeout(versionCheck, 0);
 export function applyI18n(root = document) {
   document.documentElement.lang = LANG;
   root.querySelectorAll("[data-i18n]").forEach(el => { el.textContent = t(el.dataset.i18n); });
