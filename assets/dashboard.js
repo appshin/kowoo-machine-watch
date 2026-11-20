@@ -3,6 +3,7 @@ import {
   query, orderByChild, limitToLast, now, SITE, t, applyI18n, bindLangSelects, shiftOf, fmtClock, fmtStamp,
   fmtDur, fmtHM, drawOverlay, areaLabel, stateLabel, esc, natCmp, $
 } from "./core.js";
+import { initRemoteZones, openRemoteZones, refreshRemoteZones } from "./remote-zones.js";
 
 const STALE_MS = 30000;        // 분석 PC 신호가 30초 넘게 없으면 '신호없음'
 const S = {
@@ -24,6 +25,7 @@ function onReady({ user, role }) {
     S.cams = s.val() || {};
     if (!S.sel || !S.cams[S.sel]) selectCam(camIds()[0] || null);
     renderAll();
+    refreshRemoteZones();
   });
   onValue(R("live"), s => { S.live = s.val() || {}; renderAll(); checkAlerts(); });
   onValue(R("plan"), s => { S.plan = s.val() || {}; renderAll(); checkAlerts(); });
@@ -36,6 +38,8 @@ function onReady({ user, role }) {
   });
   setStatKey(shiftOf(now()));
   bindUi();
+  initRemoteZones({ cams: () => S.cams, img: () => $("#frameImg"), live: () => S.live });
+  $("#rzOpen").addEventListener("click", () => openRemoteZones(S.sel));
   window.addEventListener("langchange", renderAll);
   document.addEventListener("visibilitychange", syncWatch);
   setInterval(tick, 1000);

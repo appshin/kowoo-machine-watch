@@ -233,3 +233,6 @@ body.room .seg { cursor: default; }
 
 .lang-checks { border: 1px solid var(--line); border-radius: var(--r-s); padding: 6px 10px 8px; display: flex; gap: 14px; flex-wrap: wrap; margin: 0; }
 .lang-checks legend { font-size: 13px; color: var(--slate); padding: 0 4px; }
+
+.warn-text { color: #9A6B00; }
+#rzCanvas { width: 100%; height: auto; display: block; cursor: crosshair; touch-action: none; }
