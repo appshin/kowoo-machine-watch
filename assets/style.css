@@ -190,3 +190,5 @@ dialog::backdrop { background: rgba(23, 32, 43, .55); }
 @media (prefers-reduced-motion: reduce) {
   .seg.idle { animation: none; outline: 3px solid #8E1410; outline-offset: -3px; }
 }
+.tile-pick .btn:not(.primary) { color: var(--ink); }
+.tile-pick .row { justify-content: center; }

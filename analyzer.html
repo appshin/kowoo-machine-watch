@@ -61,12 +61,19 @@
     <label class="field"><span data-i18n="srcType"></span>
       <select name="type">
         <option value="screen" data-i18n="srcScreen"></option>
+        <option value="image" data-i18n="srcImage"></option>
+        <option value="url" data-i18n="srcUrl"></option>
         <option value="webcam" data-i18n="srcWebcam"></option>
         <option value="mp4" data-i18n="srcMp4"></option>
         <option value="jpeg" data-i18n="srcJpeg"></option>
       </select>
     </label>
     <p class="src-screen hint" data-i18n="screenHint"></p>
+    <p class="src-image hint" data-i18n="imageHint"></p>
+    <div class="src-url">
+      <label class="field"><span data-i18n="urlLabel"></span><input name="url" type="url" placeholder="https://"></label>
+      <p class="hint" data-i18n="urlHint"></p>
+    </div>
     <div class="src-go2rtc">
       <label class="field"><span data-i18n="streamName"></span><input name="stream" placeholder="f1_cam1" maxlength="60"></label>
       <label class="field" style="margin-top:12px"><span data-i18n="baseUrl"></span><input name="base" placeholder="http://localhost:1984"></label>

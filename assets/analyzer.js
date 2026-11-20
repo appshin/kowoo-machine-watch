@@ -91,12 +91,15 @@ class Runner {
     this.openedAt = Date.now(); this.lastT = -1; this.stallSince = Date.now(); this.prevFull = null;
     for (const zs of Object.values(this.zs)) zs.prev = null;
     if (type === "jpeg") return;
+    if (type === "image") { await this.loadSavedImage(); this.render(S.running); return; }
+    const pageMode = type === "url" && (this.urlMode === "page" || this.urlFailed);
+    if (type === "url" && !(fromClick && pageMode)) { await this.openUrl(); this.render(S.running); return; }
     const v = document.createElement("video");
     v.muted = true; v.playsInline = true; v.autoplay = true;
     vidHost.appendChild(v);
     this.video = v;
     try {
-      if (type === "screen") {
+      if (type === "screen" || type === "url") {
         this.stream = await navigator.mediaDevices.getDisplayMedia({
           video: { frameRate: 5 }, audio: false, selfBrowserSurface: "exclude", surfaceSwitching: "include"
         });
@@ -117,11 +120,105 @@ class Runner {
       await v.play().catch(() => {});
     } catch (e) {
       console.warn("open", this.cam.name, e);
-      if (type === "screen") this.needPick = true;
+      if (type === "screen" || type === "url") this.needPick = true;
     }
     this.render(S.running);
   }
+  // 시험용 사진: 이 PC 브라우저에만 저장 (Firebase에는 올리지 않음)
+  imgKey() { return "kcw.img." + this.id; }
+  async loadSavedImage() {
+    let url = null;
+    try { url = localStorage.getItem(this.imgKey()); } catch {}
+    this.img = url ? await loadImg(url).catch(() => null) : (this.img || null);
+    this.needPick = !this.img;
+  }
+  pickImage() {
+    const inp = document.createElement("input");
+    inp.type = "file"; inp.accept = "image/*,video/*";
+    inp.addEventListener("change", async () => {
+      const file = inp.files?.[0];
+      if (!file) return;
+      this.resetJudge();
+      if (file.type.startsWith("video/")) { this.openTestVideo(file); return; }
+      this.close();
+      try {
+        const bmp = await createImageBitmap(file);
+        const sc = Math.min(1, 1280 / bmp.width), c = document.createElement("canvas");
+        c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+        c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+        const url = c.toDataURL("image/jpeg", 0.85);
+        try { localStorage.setItem(this.imgKey(), url); } catch {}
+        this.img = await loadImg(url);
+        this.needPick = false;
+      } catch (e) { console.warn(e); toast(t("imageFail")); }
+      this.render(S.running);
+    });
+    inp.click();
+  }
+  // 시험용 영상 파일: 반복 재생하며 실제 CCTV처럼 분석. 브라우저에 저장하지 않으므로 새로 열면 다시 선택
+  async openTestVideo(file) {
+    this.close();
+    this.img = null;
+    try { localStorage.removeItem(this.imgKey()); } catch {}
+    const v = document.createElement("video");
+    v.muted = true; v.playsInline = true; v.autoplay = true; v.loop = true;
+    v.src = this.videoUrl = URL.createObjectURL(file);
+    vidHost.appendChild(v);
+    this.video = v;
+    this.openedAt = Date.now();
+    this.needPick = false;
+    await v.play().catch(e => { console.warn(e); toast(t("imageFail")); });
+    this.render(S.running);
+  }
+  // 웹 주소 시험: 직접 영상 주소면 바로 분석, 일반 사이트 페이지면 새 창으로 열고 화면 캡처
+  async openUrl() {
+    const url = (this.cam.src?.url || "").trim();
+    this.urlMode = urlKind(url);
+    this.urlFailed = false;
+    this.needPick = this.urlMode === "page";
+    if (this.urlMode === "page") return;
+    const fail = () => { this.urlFailed = true; this.needPick = true; this.close(); this.render(S.running); };
+    if (this.urlMode === "mjpeg") {
+      const im = new Image();
+      im.crossOrigin = "anonymous";
+      im.onerror = fail;
+      im.src = url;
+      vidHost.appendChild(im);
+      this.urlImg = im;
+      return;
+    }
+    if (this.urlMode === "snapshot") { this.snapUrl = url; return; }
+    const v = document.createElement("video");
+    v.muted = true; v.playsInline = true; v.autoplay = true; v.loop = true;
+    v.crossOrigin = "anonymous";
+    v.addEventListener("error", fail);
+    vidHost.appendChild(v);
+    this.video = v;
+    this.openedAt = Date.now();
+    if (this.urlMode === "hls" && !v.canPlayType("application/vnd.apple.mpegurl")) {
+      const Hls = await loadHls();
+      if (Hls?.isSupported()) {
+        this.hls = new Hls();
+        this.hls.on(Hls.Events.ERROR, (e, d) => { if (d?.fatal) fail(); });
+        this.hls.loadSource(url);
+        this.hls.attachMedia(v);
+      } else v.src = url;
+    } else v.src = url;
+    await v.play().catch(() => {});
+  }
+  openSite() {
+    const url = (this.cam.src?.url || "").trim();
+    if (url) window.open(url, "kcw_site_" + this.id, "width=1280,height=800");
+  }
+  resetJudge() {
+    this.prevFull = null;
+    for (const zs of Object.values(this.zs)) { zs.prev = null; zs.hist = []; zs.ratio = null; zs.state = "run"; zs.since = now(); }
+  }
   close() {
+    if (this.hls) { try { this.hls.destroy(); } catch {} this.hls = null; }
+    if (this.urlImg) { this.urlImg.onerror = null; this.urlImg.src = ""; this.urlImg.remove(); this.urlImg = null; }
+    this.snapUrl = null;
+    if (this.videoUrl) { URL.revokeObjectURL(this.videoUrl); this.videoUrl = null; }
     if (this.stream) { this.stream.getTracks().forEach(tr => tr.stop()); this.stream = null; }
     if (this.video) { this.video.pause(); this.video.removeAttribute("src"); this.video.srcObject = null; this.video.load(); this.video.remove(); this.video = null; }
   }
@@ -134,7 +231,16 @@ class Runner {
   async grab() {
     let el, w, h;
     const type = this.type();
-    if (type === "jpeg") {
+    if (type === "url" && this.urlImg) {
+      el = this.urlImg; w = el.naturalWidth; h = el.naturalHeight;
+    } else if (type === "url" && this.snapUrl) {
+      try { el = await loadImg(this.snapUrl + (this.snapUrl.includes("?") ? "&" : "?") + "_t=" + Date.now(), true); }
+      catch { this.urlFailed = true; this.needPick = true; this.snapUrl = null; throw new Error("snapshot failed"); }
+      w = el.naturalWidth; h = el.naturalHeight;
+    } else if (type === "image" && !this.video) {
+      if (!this.img) throw new Error("no image");
+      el = this.img; w = el.naturalWidth; h = el.naturalHeight;
+    } else if (type === "jpeg") {
       const r = await fetch(`${this.base()}/api/frame.jpeg?src=${encodeURIComponent(this.cam.src.stream || "")}&t=${Date.now()}`, { cache: "no-store" });
       if (!r.ok) throw new Error("http " + r.status);
       el = await createImageBitmap(await r.blob()); w = el.width; h = el.height;
@@ -142,10 +248,10 @@ class Runner {
       const v = this.video;
       if (!v || this.needPick) throw new Error("no video");
       if (v.readyState < 2) {
-        if (!this.stream && Date.now() - this.openedAt > 15000) await this.open();
+        if (type === "mp4" && Date.now() - this.openedAt > 15000) await this.open();
         throw new Error("video not ready");
       }
-      if (!this.stream) {   // 네트워크 영상만 멈춤 감지·재연결
+      if (type === "mp4") {   // 네트워크 영상만 멈춤 감지·재연결
         if (v.currentTime !== this.lastT) { this.lastT = v.currentTime; this.stallSince = Date.now(); }
         else if (Date.now() - this.stallSince > 10000) { await this.open(); throw new Error("stalled"); }
         if (v.buffered.length) {
@@ -164,7 +270,12 @@ class Runner {
       for (const zs of Object.values(this.zs)) zs.prev = null;
     }
     this.ctx.drawImage(el, 0, 0, W, H);
-    if (el.close) el.close();
+    if (el.close && type === "jpeg") el.close();
+    // 다른 사이트 영상을 읽을 수 없으면(보안 차단) 화면 캡처 방식으로 전환
+    if (type === "url" && !this.stream) {
+      try { this.ctx.getImageData(0, 0, 1, 1); }
+      catch { this.urlFailed = true; this.needPick = true; this.close(); throw new Error("blocked"); }
+    }
   }
 
   async step(analyze) {
@@ -280,7 +391,10 @@ class Runner {
         <canvas class="tile-cv" width="640" height="360"></canvas>
         <div class="tile-pick" hidden>
           <p class="tile-pick-msg"></p>
-          <button type="button" class="btn primary" data-act="pick"></button>
+          <div class="row">
+            <button type="button" class="btn" data-act="site"></button>
+            <button type="button" class="btn primary" data-act="pick"></button>
+          </div>
         </div>
       </div>
       <footer class="tile-foot">
@@ -290,8 +404,10 @@ class Runner {
         <button type="button" class="btn small admin-only" data-act="cam"></button>
       </footer>`;
     el.querySelector(".tile-name").textContent = this.cam.name;
-    el.querySelector("[data-act=pick]").addEventListener("click", () => this.open(true));
-    el.querySelector("[data-act=repick]").addEventListener("click", () => this.open(true));
+    const pick = () => this.type() === "image" ? this.pickImage() : this.open(true);
+    el.querySelector("[data-act=pick]").addEventListener("click", pick);
+    el.querySelector("[data-act=repick]").addEventListener("click", pick);
+    el.querySelector("[data-act=site]").addEventListener("click", () => this.openSite());
     el.querySelector("[data-act=zones]").addEventListener("click", () => openZones(this.id));
     el.querySelector("[data-act=cam]").addEventListener("click", () => openCam(this.id));
     this.tile = el;
@@ -302,18 +418,24 @@ class Runner {
     const q = s => this.tile.querySelector(s);
     q("[data-act=zones]").textContent = t("editZones");
     q("[data-act=cam]").textContent = t("editCamera");
-    q("[data-act=pick]").textContent = t("pickScreen");
-    q("[data-act=repick]").textContent = t("repickScreen");
-    q(".tile-pick-msg").textContent = t("needPick");
+    const img = this.type() === "image";
+    q("[data-act=pick]").textContent = t(img ? "pickImage" : "pickScreen");
+    q("[data-act=repick]").textContent = t(img ? "repickImage" : "repickScreen");
+    q(".tile-pick-msg").textContent = t(img ? "needImage" : "needPick");
+    q("[data-act=site]").textContent = t("openSite");
+    q("[data-act=site]").hidden = this.type() !== "url";
+    if (this.type() === "url") q(".tile-pick-msg").textContent = t(this.urlFailed ? "urlBlocked" : "urlPageMsg");
   }
   render(analyzing) {
-    const screen = this.type() === "screen";
+    const screen = ["screen", "image", "url"].includes(this.type());
+    const lk = this.type() + (this.urlFailed ? "!" : "");
+    if (this.labeledType !== lk) { this.labeledType = lk; this.labelTile(); }
     this.tile.querySelector(".tile-pick").hidden = !(screen && this.needPick);
     this.tile.querySelector("[data-act=repick]").hidden = !screen || this.needPick;
     const st = this.tile.querySelector(".tile-status");
     const zn = Object.keys(this.cam.zones || {}).length;
     this.tile.querySelector(".tile-meta").textContent = `${areaLabel(this.cam.area)} / ${zn}`;
-    if (screen && this.needPick) { st.textContent = t("needPickShort"); st.className = "tile-status bad"; }
+    if (screen && this.needPick) { st.textContent = t(this.type() === "image" ? "needImageShort" : "needPickShort"); st.className = "tile-status bad"; }
     else if (!this.canvas.width || !this.online) { st.textContent = t("stOffline"); st.className = "tile-status bad"; }
     else if (analyzing) {
       st.textContent = `${t("stOnline")}  ${Math.round(this.ms)}ms` + (this.skipped ? `  ${t("skippedNow")}` : "") +
@@ -327,6 +449,35 @@ class Runner {
     c.drawImage(this.canvas, 0, 0);
     drawOverlay(c, cv.width, cv.height, this.cam.zones, analyzing ? this.states : {}, []);
   }
+}
+
+function loadImg(url, cors = false) {
+  return new Promise((res, rej) => {
+    const i = new Image();
+    if (cors) i.crossOrigin = "anonymous";
+    i.onload = () => res(i); i.onerror = rej; i.src = url;
+  });
+}
+// 주소 모양으로 종류 판단
+function urlKind(url) {
+  const u = url.toLowerCase().split("#")[0];
+  const path = u.split("?")[0];
+  if (/\.m3u8$/.test(path)) return "hls";
+  if (/\.(mp4|webm|ogv|mov)$/.test(path)) return "video";
+  if (/mjpe?g|video\.cgi|faststream|action=stream/.test(u)) return "mjpeg";
+  if (/\.(jpe?g|png)$/.test(path) || /snapshot|image\.cgi|jpg\.cgi/.test(u)) return "snapshot";
+  return "page";
+}
+let hlsPromise = null;
+function loadHls() {
+  if (window.Hls) return Promise.resolve(window.Hls);
+  return hlsPromise ||= new Promise(res => {
+    const sc = document.createElement("script");
+    sc.src = "https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js";
+    sc.onload = () => res(window.Hls || null);
+    sc.onerror = () => res(null);
+    document.head.appendChild(sc);
+  });
 }
 
 const jpgCanvas = document.createElement("canvas");
@@ -451,7 +602,8 @@ function bindUi() {
     const type = f.type.value;
     const cam = {
       name: f.name.value.trim(), area: f.area.value, agent: cleanKey(f.agent.value),
-      src: type === "screen" ? { type }
+      src: type === "screen" || type === "image" ? { type }
+        : type === "url" ? { type, url: f.url.value.trim() }
         : type === "webcam" ? { type, deviceId: f.deviceId.value || "" }
         : { type, stream: f.stream.value.trim(), base: f.base.value.trim() },
       zones: old.zones || {}
@@ -489,6 +641,9 @@ function syncSrcFields() {
   f.querySelector(".src-go2rtc").hidden = !(ty === "mp4" || ty === "jpeg");
   f.querySelector(".src-webcam").hidden = ty !== "webcam";
   f.querySelector(".src-screen").hidden = ty !== "screen";
+  f.querySelector(".src-image").hidden = ty !== "image";
+  f.querySelector(".src-url").hidden = ty !== "url";
+  f.url.required = ty === "url";
   f.stream.required = ty === "mp4" || ty === "jpeg";
 }
 async function loadWebcams(keep) {
@@ -511,6 +666,7 @@ function openCam(id) {
   f.type.value = c?.src?.type || "screen";
   f.stream.value = c?.src?.stream || "";
   f.base.value = c?.src?.base || "";
+  f.url.value = c?.src?.url || "";
   f.deviceId.innerHTML = c?.src?.deviceId ? `<option value="${esc(c.src.deviceId)}">${esc(c.src.deviceId.slice(0, 12))}…</option>` : "";
   $("#camDel").hidden = !id;
   syncSrcFields();
