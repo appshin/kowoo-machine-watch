@@ -4,11 +4,11 @@ import {
   getDatabase, ref, onValue, get, set, update, push, remove, onDisconnect,
   serverTimestamp, increment, query, orderByChild, limitToLast, startAt, endAt
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig, SITE } from "./firebase-config.js?v=20261120m";
+import { firebaseConfig, SITE } from "./firebase-config.js?v=20261120n";
 
 export { SITE, onValue, get, set, update, push, remove, onDisconnect, serverTimestamp, increment, query, orderByChild, limitToLast, startAt, endAt };
 
-export const VERSION = "20261120m";
+export const VERSION = "20261120n";
 window.__KCW_VERSION = VERSION;
 
 /* ---------- Firebase ---------- */
@@ -103,7 +103,7 @@ const DICT = {
     noCameras: "등록된 카메라가 없습니다. 공장 분석 PC에서 카메라와 설비를 등록하세요.",
     run: "가동", idle: "비가동 의심", off: "계획정지", nosig: "신호없음",
     cameras: "카메라", waitingFrame: "영상을 기다리는 중입니다. 공장 분석 PC가 켜져 있는지 확인하세요.",
-    frameStale: "최신 영상을 불러오는 중입니다…", camOffline: "연결 끊김",
+    frameStale: "최신 영상을 불러오는 중입니다…", camOffline: "연결 끊김", camClean: "카메라 정리", camCleanN: "카메라 정리 ({n})", ccHelp: "박스가 0개이고 분석 PC 신호도 없는 카메라는 예전에 만들다 만 것이라 위 목록에서 숨깁니다. 필요 없으면 여기서 지우세요. 지우면 그 카메라의 박스·화면·계획정지 정보가 함께 지워집니다(가동 이력은 남음).", ccPickOld: "정리 대상만 선택", ccNone: "선택 해제", ccDelN: "선택한 {n}개 삭제", ccLive: "분석 중", ccBoxes: "박스 {n}개", ccConfirm: "카메라 {n}개({names})와 그 안의 박스 {z}개를 삭제할까요? 되돌릴 수 없습니다.",
     shiftStats: "근무조별 가동 현황", day: "주간", night: "야간",
     equipment: "설비", runTime: "가동", idleTime: "비가동", idleRate: "비가동률", total: "합계",
     noData: "이 근무조에 기록된 데이터가 없습니다.",
@@ -195,7 +195,7 @@ const DICT = {
     noCameras: "No cameras yet. Register cameras and machines on the factory analysis PC.",
     run: "Running", idle: "Suspected idle", off: "Planned stop", nosig: "No signal",
     cameras: "Cameras", waitingFrame: "Waiting for video. Check that the factory analysis PC is on.",
-    frameStale: "Loading the latest frame…", camOffline: "Offline",
+    frameStale: "Loading the latest frame…", camOffline: "Offline", camClean: "Clean up cameras", camCleanN: "Clean up cameras ({n})", ccHelp: "Cameras with no boxes and no signal from an analysis PC are leftovers and are hidden from the list above. Delete them here if not needed. Deleting removes the camera's boxes, frames and planned-stop info (run history stays).", ccPickOld: "Select leftovers", ccNone: "Clear selection", ccDelN: "Delete {n} selected", ccLive: "Analyzing", ccBoxes: "{n} boxes", ccConfirm: "Delete {n} camera(s) ({names}) and their {z} box(es)? This cannot be undone.",
     shiftStats: "Utilization by shift", day: "Day shift", night: "Night shift",
     equipment: "Machine", runTime: "Running", idleTime: "Idle", idleRate: "Idle rate", total: "Total",
     noData: "No data recorded for this shift.",
@@ -287,7 +287,7 @@ const DICT = {
     noCameras: "ยังไม่มีกล้อง กรุณาลงทะเบียนกล้องและเครื่องจักรที่ PC วิเคราะห์ในโรงงาน",
     run: "เดินเครื่อง", idle: "สงสัยว่าหยุด", off: "หยุดตามแผน", nosig: "ไม่มีสัญญาณ",
     cameras: "กล้อง", waitingFrame: "กำลังรอภาพ โปรดตรวจสอบว่า PC วิเคราะห์ในโรงงานเปิดอยู่",
-    frameStale: "กำลังโหลดภาพล่าสุด…", camOffline: "ขาดการเชื่อมต่อ",
+    frameStale: "กำลังโหลดภาพล่าสุด…", camOffline: "ขาดการเชื่อมต่อ", camClean: "จัดการกล้อง", camCleanN: "จัดการกล้อง ({n})", ccHelp: "กล้องที่ไม่มีกรอบและไม่มีสัญญาณจาก PC วิเคราะห์ เป็นกล้องที่ค้างไว้ จึงซ่อนจากรายการด้านบน ถ้าไม่ใช้ให้ลบที่นี่ การลบจะลบกรอบ ภาพ และข้อมูลหยุดตามแผนของกล้องนั้น (ประวัติการทำงานยังอยู่)", ccPickOld: "เลือกเฉพาะที่ค้าง", ccNone: "ยกเลิกการเลือก", ccDelN: "ลบ {n} รายการที่เลือก", ccLive: "กำลังวิเคราะห์", ccBoxes: "กรอบ {n} อัน", ccConfirm: "ลบกล้อง {n} ตัว ({names}) และกรอบ {z} อันหรือไม่? ย้อนกลับไม่ได้",
     shiftStats: "การเดินเครื่องตามกะ", day: "กะกลางวัน", night: "กะกลางคืน",
     equipment: "เครื่องจักร", runTime: "เดิน", idleTime: "หยุด", idleRate: "อัตราหยุด", total: "รวม",
     noData: "ไม่มีข้อมูลของกะนี้",

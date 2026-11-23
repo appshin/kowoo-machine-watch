@@ -2,7 +2,7 @@ import {
   authGate, isConfigured, showSetup, R, onValue, get, query, orderByChild, startAt, endAt,
   now, SITE, t, applyI18n, bindLangSelects, shiftOf, tzParts, siteEpoch, fmtHM, areaLabel, stateLabel,
   esc, natCmp, $
-} from "./core.js?v=20261120m";
+} from "./core.js?v=20261120n";
 
 // 가동 이력: 하루(주간 08~20시 + 야간 20~다음날 08시) 동안 설비별로
 // 몇 시부터 몇 시까지 가동/비가동이었는지를 막대 그래프와 시간 목록으로 보여 줌

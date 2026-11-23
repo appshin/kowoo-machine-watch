@@ -341,3 +341,21 @@ body.selecting .tile .tile-foot, body.selecting .tile .tile-pick { pointer-event
   .hrow .hsum { grid-column: 2; }
   .hdetail { padding: 6px 10px 12px; }
 }
+
+/* 카메라 정리 */
+#camClean.warn { color: var(--idle); border-color: #E7B0AD; background: #FFF1F0; }
+.tab-agent { font-weight: 400; color: var(--slate); font-size: 11px; }
+.cc-dlg { width: min(620px, 96vw); }
+.cc-wrap { padding: 18px 20px; }
+.cc-wrap h3 { margin: 0 0 4px; }
+.cc-tools { gap: 8px; margin: 10px 0; }
+.cc-list { list-style: none; margin: 0; padding: 0; max-height: 55vh; overflow: auto; border: 1px solid var(--line); border-radius: var(--r-s); }
+.cc-list li { border-bottom: 1px solid var(--line); }
+.cc-list li:last-child { border-bottom: 0; }
+.cc-list li.leftover { background: #FFF8F0; }
+.cc-list li.empty { padding: 14px; color: var(--slate); }
+.cc-list label { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+.cc-list input { width: 18px; height: 18px; flex: none; }
+.cc-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.cc-name small { color: var(--slate); font-size: 12px; }
+.cc-foot { justify-content: flex-end; gap: 8px; margin-top: 14px; }

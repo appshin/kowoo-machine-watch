@@ -1,9 +1,9 @@
 import {
-  authGate, isConfigured, showSetup, R, onValue, set, remove, onDisconnect, serverTimestamp,
+  authGate, isConfigured, showSetup, R, onValue, set, remove, update, onDisconnect, serverTimestamp,
   query, orderByChild, limitToLast, now, SITE, t, applyI18n, bindLangSelects, shiftOf, fmtClock, fmtStamp,
   fmtDur, fmtHM, drawOverlay, areaLabel, stateLabel, esc, natCmp, $
-} from "./core.js?v=20261120m";
-import { initRemoteZones, openRemoteZones, refreshRemoteZones } from "./remote-zones.js?v=20261120m";
+} from "./core.js?v=20261120n";
+import { initRemoteZones, openRemoteZones, refreshRemoteZones } from "./remote-zones.js?v=20261120n";
 
 const STALE_MS = 30000;        // 분석 PC 신호가 30초 넘게 없으면 '신호없음'
 const S = {
@@ -23,7 +23,7 @@ function onReady({ user, role }) {
   S.user = user; S.role = role;
   onValue(R("config/cameras"), s => {
     S.cams = s.val() || {};
-    if (!S.sel || !S.cams[S.sel]) selectCam(camIds()[0] || null);
+    if (!S.sel || !camIds().includes(S.sel)) selectCam(camIds()[0] || null);
     renderAll();
     refreshRemoteZones();
   });
@@ -64,8 +64,12 @@ function onReady({ user, role }) {
 }
 
 /* ---------- data shaping ---------- */
-function camIds() {
-  return Object.keys(S.cams).sort((a, b) =>
+// 박스가 하나도 없고 분석 PC 신호도 없는 카메라 = 예전에 만들다 만 것 (탭에서 숨김, '카메라 정리'에서 삭제)
+function isLeftover(cid) {
+  return !Object.keys(S.cams[cid]?.zones || {}).length && !camFresh(cid);
+}
+function camIds(all = false) {
+  return Object.keys(S.cams).filter(cid => all || !isLeftover(cid)).sort((a, b) =>
     natCmp(S.cams[a].area, S.cams[b].area) || natCmp(S.cams[a].name, S.cams[b].name));
 }
 function camFresh(cid) {
@@ -138,6 +142,11 @@ function renderAndon(list) {
 function renderTabs(list) {
   const ids = camIds();
   $("#camMeta").textContent = ids.length ? `${ids.length}` : "";
+  const extra = Object.keys(S.cams).length - ids.length;
+  const cb = $("#camClean");
+  cb.textContent = extra ? t("camCleanN", { n: extra }) : t("camClean");
+  cb.classList.toggle("warn", extra > 0);
+  if ($("#ccDlg").open) renderClean();
   $("#camTabs").innerHTML = ids.map(cid => {
     const cam = S.cams[cid], mine = list.filter(i => i.cid === cid);
     const idleN = mine.filter(i => i.state === "idle").length;
@@ -145,7 +154,7 @@ function renderTabs(list) {
     const th = S.thumbs[cid]?.jpg;
     return `<button type="button" class="cam-tab ${cid === S.sel ? "sel" : ""}" data-cid="${esc(cid)}" aria-pressed="${cid === S.sel}">
       <span class="thumb">${th ? `<img src="${th}" alt="">` : ""}${camFresh(cid) ? "" : `<em class="tab-flag">${esc(t("camOffline"))}</em>`}</span>
-      <span class="tab-name">${esc(cam.name)}</span>
+      <span class="tab-name">${esc(cam.name)}${cam.agent ? ` <small class="tab-agent">${esc(cam.agent)}</small>` : ""}</span>
       <span class="tab-counts">${idleN ? `<b class="c-idle">${esc(t("idle"))} ${idleN}</b>` : ""}<span>${esc(t("run"))} ${runN}</span></span>
     </button>`;
   }).join("");
@@ -310,7 +319,60 @@ function setStatKey(k) {
 }
 
 /* ---------- interaction ---------- */
+/* ---------- 카메라 정리 (관리자) ---------- */
+function renderClean() {
+  const ids = camIds(true);
+  $("#ccList").innerHTML = ids.map(cid => {
+    const cam = S.cams[cid], zn = Object.keys(cam.zones || {}).length, fresh = camFresh(cid), ts = S.live[cid]?.ts;
+    const st = fresh ? `<span class="st-badge run">${esc(t("ccLive"))}</span>`
+      : `<span class="st-badge nosig">${esc(t("camOffline"))}${ts ? ` · ${esc(fmtStamp(ts))}` : ""}</span>`;
+    return `<li class="${isLeftover(cid) ? "leftover" : ""}"><label>
+      <input type="checkbox" value="${esc(cid)}">
+      <span class="cc-name"><b>${esc(cam.name || cid)}</b><small>${esc(areaLabel(cam.area))} · ${esc(cam.agent || "-")} · ${esc(t("ccBoxes", { n: zn }))}</small></span>
+      ${st}</label></li>`;
+  }).join("") || `<li class="empty">${esc(t("noCameras"))}</li>`;
+  syncClean();
+}
+function syncClean() {
+  const n = document.querySelectorAll("#ccList input:checked").length;
+  $("#ccDel").disabled = !n;
+  $("#ccDel").textContent = t("ccDelN", { n });
+}
+async function deleteCams(ids) {
+  const upd = {};
+  for (const cid of ids) {
+    for (const k of ["config/cameras", "live", "frames", "thumbs", "plan"]) upd[`${k}/${cid}`] = null;
+    for (const zid of Object.keys(S.cams[cid]?.zones || {})) upd[`crops/${cid}__${zid}`] = null;
+  }
+  await update(R(), upd);
+}
+function bindClean() {
+  $("#camClean").addEventListener("click", () => { renderClean(); $("#ccDlg").showModal(); });
+  $("#ccClose").addEventListener("click", () => $("#ccDlg").close());
+  $("#ccList").addEventListener("change", syncClean);
+  $("#ccPickOld").addEventListener("click", () => {
+    document.querySelectorAll("#ccList input").forEach(b => { b.checked = isLeftover(b.value); });
+    syncClean();
+  });
+  $("#ccNone").addEventListener("click", () => {
+    document.querySelectorAll("#ccList input").forEach(b => { b.checked = false; });
+    syncClean();
+  });
+  $("#ccDel").addEventListener("click", async () => {
+    const ids = [...document.querySelectorAll("#ccList input:checked")].map(b => b.value);
+    if (!ids.length) return;
+    const names = ids.map(cid => S.cams[cid]?.name || cid).join(", ");
+    const zn = ids.reduce((a, cid) => a + Object.keys(S.cams[cid]?.zones || {}).length, 0);
+    if (!confirm(t("ccConfirm", { n: ids.length, names, z: zn }))) return;
+    $("#ccDel").disabled = true;
+    try { await deleteCams(ids); }
+    catch (err) { console.warn(err); alert(t("saveFail")); }
+    renderClean();
+  });
+}
+
 function bindUi() {
+  bindClean();
   $("#andonStrip").addEventListener("click", e => {
     const b = e.target.closest(".seg");
     if (b) focusZone(b.dataset.cid, b.dataset.zid);

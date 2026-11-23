@@ -2,9 +2,9 @@ import {
   authGate, isConfigured, showSetup, R, onValue, get, set, update, push, remove, onDisconnect,
   serverTimestamp, increment, now, SITE, t, applyI18n, bindLangSelects, shiftOf, drawOverlay,
   areaLabel, esc, natCmp, $, COLORS, ALERT, tl, tzParts, fmtClock, nextEqId
-} from "./core.js?v=20261120m";
-import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge, fingerprint, fpSimilarity, adaptFingerprint } from "./motion.js?v=20261120m";
-import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120m";
+} from "./core.js?v=20261120n";
+import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge, fingerprint, fpSimilarity, adaptFingerprint } from "./motion.js?v=20261120n";
+import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120n";
 
 const DEFAULTS = { analyzeMs: 1000, pixThresh: 22, skipPct: 40, frameMs: 2000, frameW: 960, refMatch: 0.7, unseenMin: 10 };
 const CROP_MS = 5000, ALERT_CHECK_MS = 30000;
