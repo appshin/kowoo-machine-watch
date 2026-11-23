@@ -2,14 +2,14 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="app-version" content="20261120m">
+<meta name="app-version" content="20261120n">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>KOWOO Thai 설비 가동 감시</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23D2201A'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;600;700&family=IBM+Plex+Sans+Thai:wght@400;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/style.css?v=20261120m">
+<link rel="stylesheet" href="assets/style.css?v=20261120n">
 </head>
 <body>
 <div id="setupMsg" class="setup" hidden></div>
@@ -52,7 +52,7 @@
 
   <main class="layout">
     <section class="panel area-viewer">
-      <h2><span data-i18n="cameras"></span><span class="row"><span id="camMeta" class="meta"></span><button type="button" id="rzOpen" class="btn small admin-only" data-i18n="editZonesRemote"></button></span></h2>
+      <h2><span data-i18n="cameras"></span><span class="row"><span id="camMeta" class="meta"></span><button type="button" id="camClean" class="btn small admin-only"></button><button type="button" id="rzOpen" class="btn small admin-only" data-i18n="editZonesRemote"></button></span></h2>
       <div id="camTabs" class="cam-tabs"></div>
       <div id="stage" class="stage">
         <img id="frameImg" alt="">
@@ -98,6 +98,22 @@
 </dialog>
 
 <!-- 원격 감시 박스 편집 (admin) -->
+<dialog id="ccDlg" class="cc-dlg">
+  <div class="cc-wrap">
+    <h3 data-i18n="camClean"></h3>
+    <p class="hint" data-i18n="ccHelp"></p>
+    <div class="row cc-tools">
+      <button type="button" id="ccPickOld" class="btn small" data-i18n="ccPickOld"></button>
+      <button type="button" id="ccNone" class="btn small" data-i18n="ccNone"></button>
+    </div>
+    <ul id="ccList" class="cc-list"></ul>
+    <div class="row cc-foot">
+      <button type="button" id="ccDel" class="btn danger" disabled></button>
+      <button type="button" id="ccClose" class="btn" data-i18n="close"></button>
+    </div>
+  </div>
+</dialog>
+
 <dialog id="rzDlg" class="zone-dlg">
   <div class="zone-wrap">
     <div class="zone-canvas-wrap"><canvas id="rzCanvas"></canvas></div>
@@ -141,6 +157,6 @@ setTimeout(function () {
   el.hidden = false;
 }, 4000);
 </script>
-<script type="module" src="assets/dashboard.js?v=20261120m"></script>
+<script type="module" src="assets/dashboard.js?v=20261120n"></script>
 </body>
 </html>
