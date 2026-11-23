@@ -2,9 +2,9 @@ import {
   authGate, isConfigured, showSetup, R, onValue, get, set, update, push, remove, onDisconnect,
   serverTimestamp, increment, now, SITE, t, applyI18n, bindLangSelects, shiftOf, drawOverlay,
   areaLabel, esc, natCmp, $, COLORS, ALERT, tl, tzParts, fmtClock, nextEqId
-} from "./core.js?v=20261120n";
-import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge, fingerprint, fpSimilarity, adaptFingerprint } from "./motion.js?v=20261120n";
-import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120n";
+} from "./core.js?v=20261120p";
+import { toGray, diffFraction, diffFractionMasked, polyMask, sensPct, newZoneState, judge, fingerprint, fpSimilarity, adaptFingerprint } from "./motion.js?v=20261120p";
+import { createShapeEditor, rectToPoly, polyBBox, zonePoly, strokePoly } from "./shape-editor.js?v=20261120p";
 
 const DEFAULTS = { analyzeMs: 1000, pixThresh: 22, skipPct: 40, frameMs: 2000, frameW: 960, refMatch: 0.7, unseenMin: 10 };
 const CROP_MS = 5000, ALERT_CHECK_MS = 30000;
@@ -65,10 +65,12 @@ const LS = {
   set(k, v) { try { localStorage.setItem("kcw." + k, JSON.stringify(v)); } catch {} }
 };
 const cleanKey = s => String(s || "").trim().replace(/[.#$\[\]\/\s]+/g, "-").slice(0, 24) || "PC-1";
+// 한 컴퓨터에서 모니터별로 분석 창을 따로 띄울 때: analyzer.html?pc=PC-2 (창마다 PC 이름이 따로)
+const URL_PC = (() => { const v = new URLSearchParams(location.search).get("pc"); return v ? cleanKey(v) : ""; })();
 const clamp01 = v => Math.min(1, Math.max(0, v));
 
 const S = {
-  user: null, role: null, agent: cleanKey(LS.get("agent", "PC-1")),
+  user: null, role: null, agent: URL_PC || cleanKey(LS.get("agent", "PC-1")),
   cams: {}, plan: {}, settings: { ...DEFAULTS },
   runners: new Map(), running: false, wake: null, roomWatchers: 0, alertCfg: null
 };
@@ -79,7 +81,7 @@ if (!isConfigured()) showSetup();
 else authGate({ onReady });
 
 // 대시보드·상황실의 [분석 화면] 버튼이 새 탭 대신 이 탭으로 오도록 탭 이름을 붙임
-window.name = "kcw_analyzer";
+window.name = URL_PC ? `kcw_analyzer_${URL_PC}` : "kcw_analyzer";
 
 async function onReady({ user, role }) {
   S.user = user; S.role = role;
@@ -786,13 +788,14 @@ window.addEventListener("beforeunload", e => {
   if (S.running) { e.preventDefault(); e.returnValue = ""; }
 });
 const bc = "BroadcastChannel" in window ? new BroadcastChannel("kcw-analyzer") : null;
-bc?.addEventListener("message", e => { if (e.data === "who" && S.started) bc.postMessage("running"); });
+// 같은 PC 이름의 분석 창이 이미 열려 있는지 (PC 이름이 다르면 같은 컴퓨터에서 함께 실행 가능)
+bc?.addEventListener("message", e => { if (e.data?.who === S.agent && S.started) bc.postMessage({ running: S.agent }); });
 function checkDuplicate() {
   if (!bc) return Promise.resolve(false);
   return new Promise(res => {
-    const on = e => { if (e.data === "running") { bc.removeEventListener("message", on); res(true); } };
+    const on = e => { if (e.data?.running === S.agent) { bc.removeEventListener("message", on); res(true); } };
     bc.addEventListener("message", on);
-    bc.postMessage("who");
+    bc.postMessage({ who: S.agent });
     setTimeout(() => { bc.removeEventListener("message", on); res(false); }, 600);
   });
 }
@@ -872,10 +875,21 @@ function bindUi() {
     e.target.value = v;
     if (v === S.agent) return;
     remove(R(`agents/${S.agent}`)).catch(() => {});
-    S.agent = v; LS.set("agent", v);
+    S.agent = v;
+    if (URL_PC) history.replaceState(null, "", `?pc=${encodeURIComponent(v)}`);
+    else LS.set("agent", v);
     syncRunners();
   });
   $("#addCamBtn").addEventListener("click", () => openCam(null));
+  $("#newWinBtn").addEventListener("click", () => {
+    const used = new Set([S.agent, ...Object.values(S.cams).map(c => cleanKey(c.agent))]);
+    let n = 2; while (used.has(`PC-${n}`)) n++;
+    const v = prompt(t("newWinAsk"), `PC-${n}`);
+    if (!v) return;
+    const pc = cleanKey(v);
+    if (pc === S.agent) { alert(t("newWinSame", { pc })); return; }
+    window.open(`analyzer.html?pc=${encodeURIComponent(pc)}`, `kcw_analyzer_${pc}`);
+  });
   $("#settingsBtn").addEventListener("click", openSettings);
   document.querySelectorAll("dialog [data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
 

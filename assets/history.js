@@ -2,7 +2,7 @@ import {
   authGate, isConfigured, showSetup, R, onValue, get, query, orderByChild, startAt, endAt,
   now, SITE, t, applyI18n, bindLangSelects, shiftOf, tzParts, siteEpoch, fmtHM, areaLabel, stateLabel,
   esc, natCmp, $
-} from "./core.js?v=20261120n";
+} from "./core.js?v=20261120p";
 
 // 가동 이력: 하루(주간 08~20시 + 야간 20~다음날 08시) 동안 설비별로
 // 몇 시부터 몇 시까지 가동/비가동이었는지를 막대 그래프와 시간 목록으로 보여 줌
@@ -105,12 +105,7 @@ function collectRows() {
       rows.push({ key, eqId: z.eqId, name: z.name || "", area: z.area || cam.area || "ETC", camName: cam.name, evs: byKey[key] || [] });
     }
   }
-  // 지금은 지워진 설비라도 그날 기록이 있으면 보여 줌
-  for (const [key, evs] of Object.entries(byKey)) {
-    if (seen.has(key) || !evs.some(e => e.ts >= S.from && e.ts < S.to)) continue;
-    const e = evs[evs.length - 1];
-    rows.push({ key, eqId: e.eqId, name: e.name || "", area: e.area || "ETC", camName: t("histDeleted"), evs });
-  }
+  // 삭제된 카메라·박스의 옛 기록은 목록과 합계에서 뺌 (현재 등록된 설비만)
   const area = $("#hArea").value;
   return rows
     .filter(r => !area || r.area === area)

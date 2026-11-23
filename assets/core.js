@@ -4,11 +4,11 @@ import {
   getDatabase, ref, onValue, get, set, update, push, remove, onDisconnect,
   serverTimestamp, increment, query, orderByChild, limitToLast, startAt, endAt
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
-import { firebaseConfig, SITE } from "./firebase-config.js?v=20261120n";
+import { firebaseConfig, SITE } from "./firebase-config.js?v=20261120p";
 
 export { SITE, onValue, get, set, update, push, remove, onDisconnect, serverTimestamp, increment, query, orderByChild, limitToLast, startAt, endAt };
 
-export const VERSION = "20261120n";
+export const VERSION = "20261120p";
 window.__KCW_VERSION = VERSION;
 
 /* ---------- Firebase ---------- */
@@ -112,7 +112,7 @@ const DICT = {
     events: "상태 변경 기록", noEvents: "아직 기록이 없습니다.",
     evIdleStart: "비가동 시작", evIdleEnd: "비가동 종료", evDur: "{d} 동안",
     area_F1: "F1", area_F2: "F2", area_F3: "F3", area_WH: "창고", area_ETC: "기타",
-    agentName: "이 PC 이름", agentHint: "카메라마다 담당 PC를 지정합니다. 이 PC 이름이 지정된 카메라만 여기서 분석합니다.",
+    newWin: "다른 모니터용 분석 창", newWinAsk: "새 분석 창의 PC 이름 (그 모니터의 카메라를 이 이름으로 등록합니다)", newWinSame: "{pc}는 이 창의 이름입니다. 다른 이름을 쓰세요.", agentName: "이 PC 이름", agentHint: "카메라마다 담당 PC를 지정합니다. 이 PC 이름이 지정된 카메라만 여기서 분석합니다.",
     start: "분석 시작", stop: "분석 중지", autoStart: "열면 자동 시작",
     loadingModel: "사람 인식 모델을 불러오는 중…", modelFail: "인식 모델을 불러오지 못했습니다. 인터넷 연결을 확인하세요.",
     modelReady: "인식 모델 준비됨",
@@ -204,7 +204,7 @@ const DICT = {
     events: "Status log", noEvents: "No records yet.",
     evIdleStart: "Went idle", evIdleEnd: "Idle ended", evDur: "for {d}",
     area_F1: "F1", area_F2: "F2", area_F3: "F3", area_WH: "Warehouse", area_ETC: "Other",
-    agentName: "This PC", agentHint: "Each camera is assigned to one PC. Only cameras assigned to this PC name are analyzed here.",
+    newWin: "Window for another monitor", newWinAsk: "PC name for the new analysis window (cameras on that monitor are registered under this name)", newWinSame: "{pc} is this window's name. Use a different name.", agentName: "This PC", agentHint: "Each camera is assigned to one PC. Only cameras assigned to this PC name are analyzed here.",
     start: "Start analysis", stop: "Stop analysis", autoStart: "Start automatically",
     loadingModel: "Loading the person detection model…", modelFail: "Could not load the detection model. Check the internet connection.",
     modelReady: "Detection model ready",
@@ -296,7 +296,7 @@ const DICT = {
     events: "บันทึกสถานะ", noEvents: "ยังไม่มีบันทึก",
     evIdleStart: "เริ่มหยุด", evIdleEnd: "สิ้นสุดการหยุด", evDur: "นาน {d}",
     area_F1: "F1", area_F2: "F2", area_F3: "F3", area_WH: "คลังสินค้า", area_ETC: "อื่นๆ",
-    agentName: "ชื่อเครื่องนี้", agentHint: "กล้องแต่ละตัวกำหนดให้ PC หนึ่งเครื่อง เครื่องนี้จะวิเคราะห์เฉพาะกล้องที่กำหนดชื่อเครื่องนี้",
+    newWin: "หน้าต่างสำหรับจออื่น", newWinAsk: "ชื่อ PC ของหน้าต่างวิเคราะห์ใหม่ (กล้องบนจอนั้นจะลงทะเบียนด้วยชื่อนี้)", newWinSame: "{pc} เป็นชื่อของหน้าต่างนี้ ใช้ชื่ออื่น", agentName: "ชื่อเครื่องนี้", agentHint: "กล้องแต่ละตัวกำหนดให้ PC หนึ่งเครื่อง เครื่องนี้จะวิเคราะห์เฉพาะกล้องที่กำหนดชื่อเครื่องนี้",
     start: "เริ่มวิเคราะห์", stop: "หยุดวิเคราะห์", autoStart: "เริ่มอัตโนมัติเมื่อเปิด",
     loadingModel: "กำลังโหลดโมเดลตรวจจับคน…", modelFail: "โหลดโมเดลไม่สำเร็จ โปรดตรวจสอบอินเทอร์เน็ต",
     modelReady: "โมเดลพร้อมแล้ว",
